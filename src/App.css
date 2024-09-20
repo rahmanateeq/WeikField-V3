@@ -1,0 +1,96 @@
+.App {
+  text-align: center;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+.table{
+  display: table !important;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* .tables{
+  background: solid red;
+} */
+
+/* Added for Damage Declration */
+/* CSS For COnsent box on Damage Declaration screen  */
+.container{
+  border: 1px solid #0c0c0c;
+  padding:9px;
+  margin-top: 20px;
+  border-radius: 3px;
+  background-color: #f9f9f9;
+  justify-content: center;
+  top: 50%;
+  border-spacing: 1rem;
+  max-height: 280px;
+  overflow-y: scroll;
+}
+/*  CSS For Consent Body  */
+#dsc-body{
+  font-weight: 375;
+  font-size:medium;
+  
+}
+/* CSS for Consent HEADER on DAMAGE DEC Screen */
+#m-head{
+  font-weight: bold;
+  font-size: 25px;
+}
+/* CSS for Disclaimer Heading */
+h2{
+  text-align: center;
+  color:rgb(243, 53, 53);
+}
+/* CSS for consent Checkbox */
+ .form-check{
+  text-align: center;
+  padding: 3 px;
+  font-weight: bold;
+}
+/* CSS for Checkbox size */
+#approveClaim{
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  color:#ea0e0e;
+}
+/* CSS for type of  DISTRIBUTOR on the Damage Declaration Page, 21.02.2024*/
+.col-md-4{
+  text-align: left;
+  font-size:medium;
+  margin-bottom: 0.5rem;
+  display: inline-block;
+  margin-top: 6px;
+}

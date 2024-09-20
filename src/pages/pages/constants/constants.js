@@ -1,0 +1,8 @@
+export const userType = {
+	ADMIN: "admin",
+	DISTRIBUTOR: "DISTRIBUTOR",
+	SALESOFFICER: "SALES OFFICER",
+	APPROVER: "APPROVER",
+	BM: "BM",
+	HO: "HO"
+};
