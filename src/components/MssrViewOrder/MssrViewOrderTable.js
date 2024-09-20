@@ -190,7 +190,7 @@ function MssrViewOrderTable({ handleStatus }) {
           { loading ? (
                   <ColorRing
                   visible={true}
-                  height="100"
+                  height="80"
                   width="100%"
                   ariaLabel="blocks-loading"
                   wrapperStyle={{}}
