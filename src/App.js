@@ -26,6 +26,7 @@ import P2SViewOrderModel from "./components/DamageP2S/P2SViewOrderModel";
 import P2s from "./pages/pages/P2s";
 import DamageDiscPage from "./pages/pages/DamageDisc";
 import DamageDiscViewPage from "./pages/pages/DamageDiscView";
+import Ticket from "./pages/pages/Ticket";
 
 function App() {
   useLayoutEffect(() => {
@@ -203,7 +204,15 @@ function App() {
               </>
             }
           />
-
+            <Route
+            path="/ticket"
+            element={
+              <>
+                <Header />
+                <Ticket />
+              </>
+            }
+          />
 
           <Route path="*" element={<PageNotFound />} />
         </Routes>

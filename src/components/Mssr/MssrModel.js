@@ -41,27 +41,50 @@ const MssrModel = ({ id, isEditAble, data }) => {
         // `<p style="text-align:left"><strong>${item.item_code}</strong> </p>` +
         // `<p style="text-align:left">${item.item_name}</p>` +
         `<p style="text-align:left"><span style="font-size:12px;"> ${item.item_details}</span></p>` +
-        `<div class="input-row">` +
-        `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input1" style="border:1px solid gray" placeholder='Closing Stock' class="swal-input input-field">` +
-        // `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input2" style="border:1px solid gray" placeholder='Market Stock' class="swal-input input-field">` +
+        `<div class="input-row" style="display: flex; justify-content: space-between; gap: 2px;">` +
+        `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input1" style="border:1px solid gray; border-radius:5px;" placeholder='Closing Stock' class="swal-input input-field">` +
+        `<input type="number" min="10" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57)  || event.charCode == 46)" id="swal-input2" style="border:1px solid gray; border-radius:5px;" placeholder='Price' class="swal-input input-field">` +
         // `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input3" style="border:1px solid gray" placeholder='Expiry Qty' class="swal-input input-field">` +
         `</div>`,
       showCancelButton: true,
       confirmButtonText: "Confirm",
       cancelButtonText: "Cancel",
+      allowOutsideClick: false, 
       customClass: {
         confirmButton: "btn btn-primary",
         cancelButton: "btn btn-secondary",
       },
+      didOpen: () => {
+        const priceInput = document.getElementById("swal-input2");
+        
+        // Add event listener to clear validation message when input changes
+        priceInput.addEventListener("input", () => {
+          const price = parseFloat(priceInput.value);
+          const decimalPattern = /^\d+(\.\d{1,2})?$/;  // Ensures up to 2 decimal places
+          if (!isNaN(price) && price >= 10 && price <= 9999.99 && decimalPattern.test(priceInput.value)) {
+            Swal.resetValidationMessage(); // Reset validation when input is valid
+          }
+        });
+      },
       preConfirm: () => {
-        return [document.getElementById("swal-input1").value];
-        //          document.getElementById('swal-input2').value,
+        const price = parseFloat(document.getElementById("swal-input2").value);
+        const decimalPattern = /^\d+(\.\d{1,2})?$/;  // Validates up to 2 decimal places
+        
+        if (isNaN(price) || price < 10 || price > 9999.99 || !decimalPattern.test(price)) {
+          Swal.showValidationMessage(
+            `Price must be between 10 and 9999.99 up to two decimal`
+          );
+          return false;
+        }
+
+        return [document.getElementById("swal-input1").value,
+                 document.getElementById('swal-input2').value]
         //         document.getElementById('swal-input3').value  ];
       },
     }).then((result) => {
       if (result.isConfirmed) {
-        // const [input1, input2, input3] = result.value;
-        const [input1] = result.value;
+        const [input1, input2] = result.value;
+        // const [input1] = result.value;
 
         if (isEditAble === "true") {
           console.log(item)
@@ -70,16 +93,36 @@ const MssrModel = ({ id, isEditAble, data }) => {
             item_name: item.item_name,
             cls_stk_qty_saleable: input1 ? input1 : "0",
             action_flag: "I",
+            asp_gsv: input2,
+            asp_nsv: input2,
           };
-          let new_mssr_added = [...getViewStockDetailsLines, skuData];
-          dispatch(getViewMssrDetailsLines(new_mssr_added));
+           // Check if the item with the same "item_code" already exists
+            let new_mssr_added = [...getViewStockDetailsLines, skuData];
+            // const itemIndex = new_mssr_added.findIndex(
+            //   (existingItem) => existingItem.item_code === skuData.item_code
+            // );
+
+            // if (itemIndex !== -1) {
+            //   // Replace the old item with the new skuData
+            //   new_mssr_added[itemIndex] = skuData;
+            // } else {
+            //   // Add new skuData to the array if not already present
+            //   new_mssr_added.push(skuData);
+            // }
+          //  // For removing duplicate key
+           const key = "item_code";
+           const new_mssr_added_UniqueByKey = getUniqueByKey( new_mssr_added, key
+           );
+          //  console.log("new sku", new_mssr_added_UniqueByKey)
+          dispatch(getViewMssrDetailsLines(new_mssr_added_UniqueByKey));
         } else {
           const newData = {
             item_code: item.item_code,
             item_name: item.item_name,
             item_details: item.item_details,
             physical_closing: input1 ? input1 : "0",
-       
+            asp_gsv: input2,
+            asp_nsv: input2,
             // trasfer_qty:input2 ? input2 : "0",
             // expire_qty:input3 ? input3 : "0",
             mssr_entry: true,

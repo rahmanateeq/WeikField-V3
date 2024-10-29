@@ -401,8 +401,25 @@ const DamageDiscLoginPopup = async () => {
                     {item.menu_display_name}
                   </span>
                 </Link>
-              </li>
+              </li>        
             ))}
+
+            {/* <li
+                onClick={toggleClass}
+                className={`nav-item ${window.location.pathname === "/ticket" ? "active" : ""}`}
+                data-toggle="tooltip"
+                data-placement="right"
+                title="Ticket"
+              >
+                <Link
+                  className="nav-link"
+                  to="/ticket"
+                  onClick={() => showPopUps(window.location.pathname)}
+                >
+                  <i className="fa fa-file"></i>
+                  <span className="nav-link-text"> Ticket</span>
+                </Link>
+              </li> */}
             
           {show_otp_menu_flag ===1 &&
             <li

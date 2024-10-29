@@ -49,7 +49,7 @@ const Mssr = (props) => {
   const { distributor_details, brand_details, pack_type_details } = orderFilter;
   const { product_line_details } = productLine;
   const { flavour_details } = flavour;
-  const { mssr_line_details, invoice_details } = orderDetails;
+  const { mssr_line_details, invoice_details,invoice_item_details } = orderDetails;
 
   // Collecting data from Redux store Ends
 
@@ -63,6 +63,10 @@ const Mssr = (props) => {
   // Storing or Modifing data through react state
   const [orderData, setOrderData] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loader, setLoader] = useState(false); 
+  const [invoiceBasedSitQty, setInvoiceBasedSitQty] = useState([]) 
+  const [totalClsQty, setTotalClsQty] = useState(0);
+  const [saveWithoutInvoice, setSaveWithoutInvoice] = useState(false);
   const [distributor, setDistributor] = useState(null);
   const [salePerson, setSalePerson] = useState(profile_details.user_name);
   const [selectedBrand, setSelectedBrand] = useState({});
@@ -79,6 +83,81 @@ const Mssr = (props) => {
   const [disableConfirm, setDisableConfirm] = useState(false);
   const [showPromoModel, setShowPromoModel] = useState(true);
   const [showInvoice, setShowInvoice] = useState(false);
+
+  const [isBlocking, setIsBlocking] = useState(false); // State to track if warning is needed
+	let hasConfirmed = false;
+
+  useEffect(() => {
+    // Check if mssr_line_details has data
+    if (mssr_line_details && mssr_line_details.length > 0) {
+      // Filter the data where asp_gsv is greater than 0
+      const filtered = mssr_line_details.filter(item => parseFloat(item.physical_closing) > 0);
+        console.log("fimter data", filtered)
+      // If filtered data length is greater than 0, dispatch the cart
+      if (filtered.length > 0) {
+       
+        // For removing duplicate key
+        const key = "item_code";
+        const order_grid_details_UniqueByKey = getUniqueByKey(filtered, key);
+        
+        // Store the data in Redux store
+        dispatch(setAddToCart(order_grid_details_UniqueByKey));
+        setShowPlaceOrder(false);
+        setOrderData([]);
+        setDisableAddToCart(true);
+      }
+    }
+  }, [mssr_line_details, dispatch]);
+
+  const handleBackButtonEvent = (event) => {
+		if (isBlocking) {
+		  event.preventDefault(); // Block the default action
+	
+		  // Show confirmation alert only if there's no previous confirmation
+		  if (!hasConfirmed) {
+			Swal.fire({
+			  title: "Are you sure?",
+			  text: " Do you really want to leave?",
+			  //   icon: "warning",
+			  showCancelButton: true,
+			  confirmButtonColor: "#dc3545",
+			  cancelButtonColor: "#28a745",
+			  confirmButtonText: "Yes, leave",
+			  cancelButtonText: "No, stay here",
+			}).then((result) => {
+			  if (result.isConfirmed) {
+				hasConfirmed = true; // Set flag to indicate confirmation
+				window.history.back();
+			  } else {
+				// Keep blocking and prevent URL change
+				window.history.pushState(null, null, window.location.pathname);
+			  }
+			});
+		  } else {
+			// If already confirmed, navigate back immediately
+			window.history.back();
+		  }
+		} else {
+		  // If not blocking, allow navigation
+		  setIsBlocking(false);
+		}
+	  };
+	
+	  useEffect(() => {
+		// Set blocking state to true on mount
+		setIsBlocking(true);
+		hasConfirmed = false; // Initialize confirmation flag
+	
+		// Add an artificial history entry to trap the back button press
+		window.history.pushState(null, null, window.location.pathname);
+		window.addEventListener("popstate", handleBackButtonEvent);
+	
+		return () => {
+		  window.removeEventListener("popstate", handleBackButtonEvent);   
+	 // Cleanup
+		};
+	  }, [isBlocking, navigate]);
+
   const handlePackType = (e) => {
     {
       setEmpty(false);
@@ -110,6 +189,7 @@ const Mssr = (props) => {
     //AXIOS WRAPPER FOR API CALL
   };
   const getOrderDetails = async (data) => {
+    setSaveWithoutInvoice(false)
     if (data === "0") {
       setDistributor(null);
       // dispatch(setMssrList(null));
@@ -225,7 +305,7 @@ const Mssr = (props) => {
       return toast.error("You missed selecting Brand");
     }
     // Show filtered data based on packType, selectedBrand, selectedProductLine and selectedFlavour
-    let filterData = mssr_line_details.filter(function (el) {
+    let filterData = mssr_line_details?.filter(function (el) {
       if (
         selectedPackType &&
         selectedBrand &&
@@ -355,31 +435,55 @@ const Mssr = (props) => {
 
   const handleQty = (e, stock, item) => {
     // Handle order grid quantity and store in react state.
+
     const inputFieldQty = document.getElementById(
       `quantityFieldId-${item.item_code}`
     );
     const inputFieldQty1 = document.getElementById(
       `quantityFieldId1-${item.item_code}`
     );
+    let totalStk = (Number(item.lm_primary_units) + Number(item.lm_cls_stk)) * 1.50;
+  
+    if (totalStk > 0) {
+      if (Number(e.target.value) > totalStk) {
+        Swal.fire({
+          html: 'The entered quantity exceeds the total stock. Please enter a valid quantity.',
+          showConfirmButton: true,
+          showCancelButton: true,
+          confirmButtonText: 'Mistakenly Entered',
+          cancelButtonText: "Yes it's correct",
+          confirmButtonColor: '#dc3545',
+          cancelButtonColor:'#28a745'
+        }).then((result) => {
+          if (result.isConfirmed) {
+            e.target.value=0;
+  
+          } 
+  
+        })
+      }
+    }else{
 
-	if(e.target.value > 0 && item.lm_primary_units==0.0 && item.lm_cls_stk==0.0){
-      Swal.fire({
- 
-        html: 'Are you sure about this item code,there is no Primary or Closing Stock on this Item Code?',
-        showConfirmButton: true,
-        showCancelButton: true,
-        confirmButtonText: 'Mistakenly Entered',
-        cancelButtonText: "Yes it's correct",
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor:'#28a745'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          e.target.value=0;
+      if(e.target.value > 0 && item.lm_primary_units==0.0 && item.lm_cls_stk==0.0){
+          Swal.fire({
+    
+            html: 'Are you sure about this item code,there is no Primary or Closing Stock on this Item Code?',
+            showConfirmButton: true,
+            showCancelButton: true,
+            confirmButtonText: 'Mistakenly Entered',
+            cancelButtonText: "Yes it's correct",
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor:'#28a745'
+          }).then((result) => {
+            if (result.isConfirmed) {
+              e.target.value=0;
 
-        } 
+            } 
 
-      })
-    }																			 
+          })
+        }
+    }
+																			 
     if (stock === "physical_closing") {
       setOrderData((orderData) =>
         orderData.map((data) =>
@@ -427,13 +531,104 @@ const Mssr = (props) => {
     // setDisableAddToCart(false);
   };
 
-  const saveConfirmMssrOrder = async () => {
+   const isButtonDisabled = !saveWithoutInvoice && (!selectedInvoice || selectedInvoice.length === 0);
+
+
+  useEffect(() => {
+    if (addTocart?.length) {
+      const totalQty = addTocart.reduce((acc, item) => acc + Number(item.physical_closing), 0);
+      setTotalClsQty(totalQty);
+    }
+  }, [addTocart]);
+
+  function combineItemsByItemCode(items) {
+    const resultMap = {};
+  
+    items.forEach(item => {
+      const qty = parseFloat(item.total_qty_pieces);
+      
+      // Check if the item_code exists in the resultMap and add or initialize the quantity
+      if (resultMap[item.item_code]) {
+        resultMap[item.item_code] += qty;
+      } else {
+        resultMap[item.item_code] = qty;
+      }
+    });
+  
+    // Convert resultMap back to an array format
+    return Object.keys(resultMap).map(item_code => ({
+      item_code,
+      total_qty_pieces: resultMap[item_code]
+    }));
+  }
+
+  useEffect(() =>{
+
+        const results = [];
+        if(selectedInvoice !== null && invoice_item_details !== null){
+
+          const unselectedInvoices = invoice_details?.filter(  //filter unselected Invoice
+            (invoice) =>
+              !selectedInvoice?.some(
+                (selected) => selected.sap_doc_no === invoice.document_no
+              )
+          );
+            // console.log("unselectedInvoices",unselectedInvoices)  
+
+         invoice_item_details?.forEach(item => {
+          const isUnselected = unselectedInvoices.some(invoice => invoice.document_no === item.document_no) 
+
+            if (isUnselected) {
+
+                const documentNo = item.document_no;
+                const qty = parseFloat(item.qty_pieces); 
+
+                results.push({
+                    item_code: item.item_code,
+                    total_qty_pieces: qty
+                });
+            }
+        });
+        if (results !== null){
+          console.log("Total quantities by document_no for unselected invoices ", results)
+          const combinedItems = combineItemsByItemCode(results);
+          console.log(" unselected invoices with unique item_code:", combinedItems)
+          setInvoiceBasedSitQty(combinedItems);
+        }
+        }
+
+  },[selectedInvoice,invoice_item_details])
+
+  const mergeCartWithSitQty = () => {
+
+    const updatedCartDataWithInvoice = addTocart.map(cartItem => {
+      const matchingInvoiceItem = invoiceBasedSitQty.find(invoiceItem => invoiceItem.item_code === cartItem.item_code);
+      return {
+        ...cartItem,
+        sit_qty:  matchingInvoiceItem ? matchingInvoiceItem.total_qty_pieces : "0",
+      };
+    });
+  
+    const unmatchedInvoiceItems = invoiceBasedSitQty.filter(invoiceItem => 
+      !addTocart.some(cartItem => cartItem.item_code === invoiceItem.item_code)
+    ).map(unmatchedItem => ({
+      ...unmatchedItem,
+      sit_qty: unmatchedItem ?  unmatchedItem.total_qty_pieces : "0", // Set sit_qty to total_qty_pieces for unmatched items
+      physical_closing: "0", // Default value for unmatched items
+    }));
+   const updatedCartData = [... updatedCartDataWithInvoice, ...unmatchedInvoiceItems]
+
+    return updatedCartData 
+  };
+
+  const saveConfirmMssrOrder = async (updatedCartData) => {
+    setLoader(true)
     await MSSRService.saveMssrEntry({
       userProfile,
       distributor,
       profile_details,
       selectedInvoice,
-      addTocart,
+      updatedCartData,
     }).then((response) => {
       {
         response.data.data.error_code === "0"
@@ -444,26 +639,217 @@ const Mssr = (props) => {
             )
           : toast.error(<span>{`${response.data.data.message}`}</span>);
       }
+    }).catch((error) => {
+      Swal.fire({
+        icon: 'error', // Display an error icon
+        title: 'Oops...',
+        text: 'Something went wrong!', // Custom error message
+        footer: 'Please try again later.' // Optional footer for additional info
+      });
+        console.log("Error in Confirm", error)
+    }).finally(() =>{
+      setLoader(false)
     });
   };
 
-  const confirmMssrOrder = async () => {
-    await Swal.fire({
-      title: "Are you sure?",
-      text: "You want to save this MSSR!",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#28a745",
-      confirmButtonText: "Yes, save it!",
-    }).then((result) => {
-      if (result.isConfirmed) {
-        saveConfirmMssrOrder();
-        // navigate('/dashboard');
-        setDisableConfirm(true)
-      }
+// for save draft
+
+const saveDraftMssrOrder = async (updatedCartData) => {
+  setLoader(true)
+  await MSSRService.saveMssrDraftEntry({
+    userProfile,
+    distributor,
+    profile_details,
+    selectedInvoice,
+    updatedCartData,
+  }).then((response) => {
+    {
+      response.data.data.error_code === "0"
+        ? toast.success(
+            <span>{`${response.data.data.message}`}</span>,
+            { duration: 4000 },
+            navigate("/dashboard")
+          )
+        : toast.error(<span>{`${response.data.data.message}`}</span>);
+    }
+  }).catch((error) => {
+    Swal.fire({
+      icon: 'error', // Display an error icon
+      title: 'Oops...',
+      text: 'Something went wrong!', // Custom error message
+      footer: 'Please try again to save Draft.' // Optional footer for additional info
     });
+      console.log("Error in Draft save ", error)
+  }).finally(() =>{
+    setLoader(false)
+  });
+};
+
+const confirmDraftMssrOrder = async (e) => {
+  e.preventDefault();
+  const updatedCartData = mergeCartWithSitQty();
+
+  console.log("updatedCartData", updatedCartData)
+  // Calculate the totals
+  const totalSitQty = updatedCartData.reduce((acc, item) => acc + Number(item.sit_qty), 0);
+  const totalClsStkQtySaleable = updatedCartData.reduce((acc, item) => acc + Number(item.physical_closing), 0);
+
+  // Build table rows
+  const tableRows = updatedCartData.map((item) => `
+    <tr>
+      <td>${item.item_code}</td>
+      <td>${item.physical_closing}</td>
+      <td>${item.sit_qty}</td>
+    </tr>
+  `).join('');
+
+  // Build the table structure with a custom scrollable container
+  const tableHTML = `
+    <div style="max-height: 350px; overflow-y: auto; border: 1px solid #ccc; scrollbar-width: thin; transparent;">
+     <style>
+    
+        /* Set table header background  */
+        .custom-thead th {
+        background-color: #3dae2b !important; /* Ensure the background is applied */
+        color: white !important;
+      }
+      </style>
+      <table border="1" cellpadding="5" cellspacing="0" style="width: 90%; text-align: center;">
+        <thead class="custom-thead">
+          <tr>
+            <th> Item Code </th>
+            <th> Stock Entry </th>
+            <th> SIT Qty </th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td><strong>${totalClsStkQtySaleable}</strong></td>
+            <td><strong>${totalSitQty}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+  `;
+
+  await Swal.fire({
+    title: "Are you sure?",
+    html: `
+      <p>You want to save this MSSR Draft!</p>
+      ${tableHTML}
+    `,
+    showCancelButton: true,
+    confirmButtonColor: "#3dae2b",
+    cancelButtonColor: "#e42526",
+    confirmButtonText: "Yes, save Draft!",
+    allowOutsideClick: false, 
+    focusConfirm: false,
+   
+  }).then((result) => {
+    if (result.isConfirmed) {
+      saveDraftMssrOrder(updatedCartData);
+      // console.log(updatedCartData)
+      setDisableConfirm(true);
+    }
+  });
+};
+
+  // Handler to update the checkbox state
+  const handleCheckboxChange = (e) => {
+    setSaveWithoutInvoice(e.target.checked);
   };
+
+
+ 
+const confirmMssrOrder = async () => {
+  const updatedCartData = mergeCartWithSitQty();
+
+  // Calculate the totals
+  const totalSitQty = updatedCartData.reduce((acc, item) => acc + Number(item.sit_qty), 0);
+  const totalClsStkQtySaleable = updatedCartData.reduce((acc, item) => acc + Number(item.physical_closing), 0);
+
+  // Build table rows
+  const tableRows = updatedCartData.map((item) => `
+    <tr>
+      <td>${item.item_code}</td>
+      <td>${item.physical_closing}</td>
+      <td>${item.sit_qty}</td>
+    </tr>
+  `).join('');
+
+  // Build the table structure with a custom scrollable container
+  const tableHTML = `
+    <div style="max-height: 350px; overflow-y: auto; border: 1px solid #ccc; scrollbar-width: thin; transparent;">
+     <style>
+    
+        /* Set table header background  */
+        .custom-thead th {
+        background-color: #3dae2b !important; /* Ensure the background is applied */
+        color: white !important;
+      }
+      </style>
+      <table border="1" cellpadding="5" cellspacing="0" style="width: 90%; text-align: center;">
+        <thead class="custom-thead">
+          <tr>
+            <th> Item Code </th>
+            <th> Stock Entry </th>
+            <th> SIT Qty </th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td><strong>${totalClsStkQtySaleable}</strong></td>
+            <td><strong>${totalSitQty}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div style="margin-top: 20px; display: flex; align-items: center;">
+      <input type="checkbox" id="confirmCheck" style="margin-right: 15px; margin-bottom: 5px;" />
+      <label for="confirmCheck"> I confirm these entries</label>
+    </div>
+  `;
+
+  await Swal.fire({
+    title: "Are you sure?",
+    html: `
+      <p>You want to save this MSSR!</p>
+      ${tableHTML}
+    `,
+    showCancelButton: true,
+    confirmButtonColor: "#3dae2b",
+    cancelButtonColor: "#e42526",
+    confirmButtonText: "Yes, save it!",
+    allowOutsideClick: false, 
+    focusConfirm: false,
+    preConfirm: () => {
+      const confirmCheck = Swal.getPopup().querySelector('#confirmCheck');
+
+      confirmCheck.addEventListener('change', () => {
+        if (confirmCheck.checked) {
+          Swal.resetValidationMessage();  // Reset validation message if checkbox is checked
+        }
+      });
+      if (!confirmCheck.checked) {
+        Swal.showValidationMessage('You need to confirm the entries');
+        return false;
+      }
+      return true;
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      saveConfirmMssrOrder(updatedCartData);
+      setDisableConfirm(true);
+    }
+  });
+};
 
   // const confirmMssrOrder = async () =>{
   const saveOrder = async (e) => {
@@ -471,7 +857,7 @@ const Mssr = (props) => {
 
     if (
       distributor.mssr_invoice_lov_display_flag === "1" &&
-      selectedInvoice.length === 0
+      selectedInvoice.length === 0 && !saveWithoutInvoice
     ) {
       await Swal.fire({
         title: "<p style='color:red'>Missed marking DB recevied Invoices!</p>",
@@ -497,6 +883,36 @@ const Mssr = (props) => {
     }
   };
   return (
+    <>  
+     {loader ? (
+        <div 
+         style={{
+          backgroundColor: 'white',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh', // This makes the div take the full height of the viewport
+          overflow: 'hidden' // Prevent overflow and scrolling
+        }}
+      >
+        
+          <ColorRing
+          visible={true}
+          height="100"
+          width="100"
+          ariaLabel="blocks-loading"
+          wrapperStyle={{}}
+          wrapperClass="blocks-wrapper"
+          colors={[
+            "#e15b64",
+            "#f47e60",
+            "#f8b26a",
+            "#abbd81",
+            "#849b87",
+          ]}
+        />
+      </div>
+      ) : (
     <>
       <Helmet title="Mssr" />
       <div className="content-wrapper" ref={containerRef}>
@@ -835,7 +1251,30 @@ const Mssr = (props) => {
                               </div>
                             </div>
                           </div>
-
+                            <div className="col-md-8 mb-3">
+                              <div className="row">
+                                {/* Check if invoice_details array exists and is empty */}
+                                {showInvoice &&  selectedInvoice.length === 0 && (
+                                  <>
+                                  <div className="col-2 col-md-1 d-flex align-items-center">
+                                    <input
+                                      type="checkbox"
+                                      id="saveWithoutInvoice"
+                                      name="saveWithoutInvoice"
+                                      checked={saveWithoutInvoice}
+                                      onChange={handleCheckboxChange}
+                                      style={{ cursor: 'pointer' }}
+                                    />
+                                  </div>
+                                  <div className="col-10 col-md-11 d-flex align-items-center">
+                                    <label className="control-label mb-0">
+                                      I Confirm to Save as Draft Without Invoice
+                                    </label>
+                                  </div>
+                                </>
+                                )}
+                              </div>
+                            </div>
                           <div className="form-group row">
                             <div className="col-md-8">
                               {showInvoice && (
@@ -874,6 +1313,7 @@ const Mssr = (props) => {
                                     dispatch(setProductLine("null")),
                                     dispatch(setOrderDetails("null")),
                                     setShowInvoice(false),
+                                    setSaveWithoutInvoice(false),
                                     setSelectedBrand({}),
                                     setOrderData([])
                                   )}
@@ -898,6 +1338,7 @@ const Mssr = (props) => {
                               </div>
                             </div>
                           </div>
+                          
                           {/* <div className="row" style={{zIndex:999}}>
                             <div
                               className="col-md-12"
@@ -1308,6 +1749,7 @@ const Mssr = (props) => {
                                 <i
                                   onClick={(e) => removeFromCart(e, item)}
                                   className="text-danger fa fa-trash mr-1"
+                                  style={{ cursor: 'pointer' }}
                                 ></i>
                               </div>
                               <div className="cart-prod-title">
@@ -1401,14 +1843,14 @@ const Mssr = (props) => {
                           ))}
                       </div>
 
-                      <p className="text-center d-none d-sm-block m-0 font-weight-bold">
-                        Total Unit:{" "}
-                        <span className="text-danger">
-                          {/* {parseInt(addToCartQty, 10)} */}
-
-                          {addTocart.length}
-                        </span>
+                      <div className="d-flex justify-content-between m-0 font-weight-bold px-3 mt-4">
+                      <p className="m-0">
+                        Total Lines: <span className="text-danger">{addTocart.length}</span>
                       </p>
+                      <p className="m-0">
+                        Total Qty: <span className="text-danger">{totalClsQty}</span>
+                      </p>
+                      </div>
                       {/* <h1 className="text-center text-success d-none d-sm-block">
                         {getRoundOff(addToCartTotal, 2)}
                       </h1> */}
@@ -1426,9 +1868,18 @@ const Mssr = (props) => {
                       </a>
 
                       <button
+                        onClick={(e) => confirmDraftMssrOrder(e)}
+                        type="button"
+                        disabled={isButtonDisabled}
+                        className="btn btn-warning btn-block btn-lg my-3 d-sm-block d-none"
+                      >
+                        Save Draft{" "}
+                        <i class="fa-sharp fa-solid fa-clipboard-list"></i>
+                      </button>
+
+                      <button
                         onClick={(e) => saveOrder(e)}
                         type="button"
-                        disabled={disableConfirm}
                         className="btn btn-primary btn-block btn-lg my-3 d-sm-block d-none"
                       >
                         Save Mssr{" "}
@@ -1473,18 +1924,51 @@ const Mssr = (props) => {
       </div>
       <div className="atc-footer-mobile d-block d-sm-none">
         <div className="atcm-button-group">
-          {" "}
+        {showPlaceOrder === false ? (
           <Link className="atcm-total-amount" data-toggle="modal">
             <span className="atcm-icon">
               <i className="fas fa-cart-shopping mr-2"></i>
             </span>
             <span className="atcm-text">
               <span className="atc-unit">Count : {addTocart.length}</span>
-              {/* <span className="atc-unit">
-                Amt    :  {getRoundOff(addToCartTotal, 2)}
-              </span> */}
+             
             </span>
-          </Link>{" "}
+          </Link>
+        ) : (
+          <Link  className={`atcm-total-amount ${isButtonDisabled ? 'disabled-link' : ''}`}
+          onClick={(e) => {
+            if (isButtonDisabled) {
+              e.preventDefault(); // Prevent the link from working
+              Swal.fire({
+                icon: 'warning',
+                title: 'Action Required',
+                text: 'Please check the checkbox to save as draft.',
+                confirmButtonText: 'OK',
+                cancelButtonText: 'Cancel',
+                showCancelButton: true, // Show the cancel button
+              }).then((result) => {
+                if (result.isConfirmed) {
+                  // If OK is clicked in Swal
+                  setShowOrderSummary('d-none');
+                  setShowSearchFilter('d-block');
+                  setShowPlaceOrder(false);
+                }
+              });
+            } else {
+              confirmDraftMssrOrder(e); // Call the function if not disabled
+            }
+          }}
+          >
+            <span className="atcm-icon">
+            <i class="fa-sharp fa-solid fa-clipboard-list"></i>
+            </span>
+            <span className="atcm-text">
+              <span className="atc-unit">Save Draft</span>
+             
+            </span>
+          </Link>
+        )}
+          
           {showPlaceOrder === false && (
             <Link
               className="atcm-place-order"
@@ -1522,7 +2006,7 @@ const Mssr = (props) => {
               onClick={(e) => saveOrder(e)}
               type="button"
               className="atcm-place-order"
-              disabled={disableConfirm}
+              // disabled={disableConfirm}
             >
               <span>Save Mssr</span>{" "}
               <i className="fa-solid fa-circle-arrow-right"></i>
@@ -1534,6 +2018,8 @@ const Mssr = (props) => {
       <MssrModel id="mssrModelTable" />
 
       {/* <Toaster position="bottom-center" reverseOrder={false} /> */}
+    </>
+     )}
     </>
   );
 };

@@ -1,6 +1,5 @@
 import Multiselect from "multiselect-react-dropdown";
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
 	setInvoice,
 	setFlavour,
@@ -8,35 +7,50 @@ import {
 
 import { useSelector, useDispatch } from "react-redux";
 
-
 function MultiSelect({invoice_details}) {
 	const dispatch = useDispatch();
-	const [selectedValue, setSelectedValue] = useState(null);
+	const [selectedValue, setSelectedValue] = useState([]);
 
-	// const mssr = useSelector((state) => state.mssr);
-	// const { mssr_distributors, mssr_invoices } = mssr;
-	let invoice_data = [];
+	// Map invoice details to required format
+    const options = invoice_details?.map((item) => ({
+        sap_doc_no: item.document_no,
+        sap_doc_no_date: `${item.document_no}_[${item.document_date}]`,
+        draft_flag: item.draft_flag,
+    })) || [];
 
-		invoice_data =
-		invoice_details &&
-		invoice_details.map((item, index) => ({
-			sap_doc_no: item,
-		}))
-	const options = invoice_data;
+	const initialSelected = useMemo(
+        () => options.filter(item => item.draft_flag === "Y"),
+        [invoice_details]
+    );
+
+	const buildSelectedObject = (selectedList) => {
+		return selectedList.map((item) => ({
+			sap_doc_no: item.sap_doc_no, // Return an object with sap_doc_no
+		}));
+	};
+
+    // Dispatch selected items' sap_doc_no to Redux store on mount
+    useEffect(() => {
+		if(initialSelected.length > 0){
+			setSelectedValue([...initialSelected]);
+			const selectedDocNos = buildSelectedObject([...initialSelected])
+        dispatch(setInvoice(selectedDocNos));
+		}
+		
+    }, [initialSelected]);
+
 	const onSelect = (selectedList, selectedItem) => {
-		console.log("selectedList", selectedList);
-		// dispatch(setFlavour("null")),
-		dispatch(setInvoice(selectedList))
+		setSelectedValue([...selectedList]);
+		const selectedDocumentNos = buildSelectedObject([...selectedList]);
+		dispatch(setInvoice(selectedDocumentNos));
 	};
 
 	const onRemove = (selectedList, removedItem) => {
-		console.log("remove", selectedList);
-		dispatch(setInvoice(selectedList))
+		setSelectedValue([...selectedList]);
+		const remainingDocumentNos = buildSelectedObject([...selectedList]);
+		dispatch(setInvoice(remainingDocumentNos));
 	};
-	useEffect(() => {
-		setSelectedValue(null)
-	}, [])
-	
+
 	return (
 		<Multiselect
 			// disable={disableFilter}
@@ -44,7 +58,7 @@ function MultiSelect({invoice_details}) {
 			selectedValues={selectedValue} // Preselected value to persist in dropdown
 			onSelect={onSelect} // Function will trigger on select event
 			onRemove={onRemove} // Function will trigger on remove event
-			displayValue="sap_doc_no" // Property name to display in the dropdown options
+			displayValue="sap_doc_no_date" // Property name to display in the dropdown options
 		/>
 	);
 }

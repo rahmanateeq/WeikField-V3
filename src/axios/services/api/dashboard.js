@@ -43,10 +43,25 @@ function getOrderLines(userProfile, order_no) {
 		}),
 	});
 }
+
+function getDetailedOrderStatus(userProfile, order_no) {
+	return request({
+		url: `dashboard/getDetailedOrderStatus`,
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${userProfile.token}`,
+		},
+		data: JSON.stringify({
+			order_no
+		}),
+	});
+}
 const DashboardService = {
 	getDashboardDetails,
 	setStatus,
-	getOrderLines, //, update, delete, etc. ...
+	getOrderLines,//, update, delete, etc. ...
+	getDetailedOrderStatus 
 };
 
 export default DashboardService;

@@ -32,7 +32,8 @@ function MssrViewOrderTable({ handleStatus }) {
   const { viewMssrFilter, viewMssrTotalPages ,viewMssrTotalRecord} = mssr;
   // const { viewMssrFilter, viewMssrTotalPages } = mssr;  
   const [loadingItems, setLoadingItems] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingExcels, setLoadingExcels] = useState([]);
+  const [loader, setLoader] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [currentPage, setCurrentPage] = useState(1);
@@ -64,7 +65,7 @@ function MssrViewOrderTable({ handleStatus }) {
       inputPlaceholder: "Please Enter Remark",
     });
     if (remark) {
-      setLoading(true)
+      setLoader(true)
       await MssrService.setValidationStatus(
         userProfile,
         stock_entry_no,
@@ -79,7 +80,7 @@ function MssrViewOrderTable({ handleStatus }) {
         Swal.fire('Error', 'Failed to Approve the order. Please try again.', 'error');
       })
       .finally(() => {
-        setLoading(false);
+        setLoader(false);
       });
       
     }
@@ -122,7 +123,7 @@ function MssrViewOrderTable({ handleStatus }) {
   });
 
     if (remark) {
-      setLoading(true)
+      setLoader(true)
       await MssrService.setRejectionStatus(
         userProfile,
         stock_entry_no,
@@ -134,10 +135,10 @@ function MssrViewOrderTable({ handleStatus }) {
       })
       .catch((error) => {
         
-        Swal.fire('Error', 'Failed to reject the order. Please try again.', 'error');
+        Swal.fire('Error', 'Failed to reject the order. Please try again.', error);
       })
       .finally(() => {
-        setLoading(false);
+        setLoader(false);
       });
  
     }
@@ -176,6 +177,54 @@ function MssrViewOrderTable({ handleStatus }) {
     );
     };
 
+    const downloadExcel = (mssr) => {
+      setLoadingExcels((prevLoadingItems) => [...prevLoadingItems, mssr]);
+       const fileName = mssr.mssr_entry_no;
+       const myHeaders = new Headers();
+       myHeaders.append("Content-Type", "application/json");
+
+      const raw = JSON.stringify({
+        stock_entry_no: mssr.mssr_entry_no, // use the stock entry from the passed mssr object
+      });
+    
+      const requestOptions = {
+        method: "POST",
+        headers: myHeaders,
+        body: raw,
+        redirect: "follow"
+      };
+    
+      const fileUrl = `${baseURL}/mssr/mssrExcelDownload`;
+    
+      fetch(fileUrl, requestOptions)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        console.log("response", response)
+        return response.blob();  // Get the response as a Blob for file download
+      })
+      .then((blob) => {
+        console.log("blob", blob);
+        // Create URL from Blob
+        const url = window.URL.createObjectURL(blob, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8' } ); // Correct usage
+        console.log("url", url);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `${fileName}.xls`); // Set the file name
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link); // Clean up
+      })
+      .catch((error) => {
+        console.error("Download failed:", error);
+      })
+      .finally(() =>{
+        setLoadingExcels((prevLoadingItems) =>
+          prevLoadingItems.filter((loadingItem) => loadingItem !== mssr))
+      })
+  };
+
     const reset = async() =>{
       await dispatch(getViewMssrDetailsLines(null));
     }
@@ -187,7 +236,7 @@ function MssrViewOrderTable({ handleStatus }) {
 
        
         <div className="card border-0 rounded-0 mb-3">
-          { loading ? (
+          { loader ? (
                   <ColorRing
                   visible={true}
                   height="80"
@@ -299,11 +348,29 @@ function MssrViewOrderTable({ handleStatus }) {
                               :
                               <i
                               onClick={() => downloadPDF(mssr)}
-                              className="fa fa-download"
-                              style={{ fontSize: "24px", color: "green" }}
+                              className="fa fa-file-pdf"
+                              style={{ fontSize: "24px", color: "red", cursor: "pointer" }}
                               aria-hidden="true"
                             ></i>
                             }
+                           
+                          
+                           {mssr.status_code < 2 && (
+                           loadingExcels.includes(mssr) ?
+                              <i
+                              class="fa fa-spinner fa-spin"
+                              style={{ fontSize: "24px", color:"green", marginLeft: "20px" }}
+                            ></i>
+                           :
+                            <i
+                              onClick={() => downloadExcel(mssr)}
+                              className="fa fa-file-excel"
+                              style={{ fontSize: "24px", color: "green", cursor: "pointer", marginLeft: "20px" }}
+                              aria-hidden="true"
+                            ></i>
+                             )
+                             }
+
                           </td>
                         </tr>
                       ))}

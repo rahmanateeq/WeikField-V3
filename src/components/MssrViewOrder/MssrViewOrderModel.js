@@ -129,9 +129,11 @@ useEffect(() => {
                 <div className="modal-dialog modal-lg" role="document">
                   <div className="modal-content">
                     <div className="modal-header">
-                      <h5 className="modal-title" id="exampleModalLabel">
-                        View MSSR Status - {getViewStockDetailsLines && getViewStockDetailsLines[0].ui_status}
-                      </h5>
+                    <h5 className="modal-title" id="exampleModalLabel">
+                      <span style={{ fontWeight: 'bold' }}>View MSSR Status:</span> {getStockEntryNO && getStockEntryNO.ui_status} &nbsp;&nbsp;|&nbsp;&nbsp;
+                      <span style={{ fontWeight: 'bold' }}>Action By:</span> {getStockEntryNO && getStockEntryNO.action_by !== 'na' ? getStockEntryNO.action_by : 'N/A'} &nbsp;&nbsp;|&nbsp;&nbsp;
+                      <span style={{ fontWeight: 'bold' }}>Remarks:</span> {getStockEntryNO && getStockEntryNO.action_by_remarks !== 'na' ? getStockEntryNO.action_by_remarks : 'N/A'}
+                    </h5>
                       <button
                         className="close"
                         type="button"

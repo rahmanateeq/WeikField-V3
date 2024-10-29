@@ -56,6 +56,63 @@ function ViewOrderTable({handleStatus}) {
 			navigate("/vieworder");
 		}
 	};
+
+  let isFetchingOrderStatus = false; 
+
+  const getDetailedOrderStatus = async (order) => {
+    // Check if a fetch is already in progress
+    if (isFetchingOrderStatus) {
+      return; // If already fetching, exit the function
+    }
+  
+    const { order_no } = order;
+    isFetchingOrderStatus = true; // Set the flag to true
+  
+    try {
+      const response = await DashboardService.getDetailedOrderStatus(userProfile, order_no);
+      console.log("response", response.data);
+  
+      // Check if the response is successful and has data
+      if (response.data.error_code === 0 && response.data.status === "Success") {
+        const message = response.data.data.status.message;
+  
+        // Check if the message is "na"
+        if (message === "na") {
+          Swal.fire({
+            title: 'Order Status',
+            text: 'No message available for this order.',
+            confirmButtonText: 'OK',
+          });
+        } else {
+          Swal.fire({
+            title: 'Order Status',
+            text: `${message}`,
+            confirmButtonText: 'OK',
+          });
+        }
+      } else {
+        // Handle case where response is not successful
+        Swal.fire({
+          title: 'Error',
+          text: 'Failed to retrieve order status.',
+          icon: 'error',
+          confirmButtonText: 'OK',
+        });
+      }
+    } catch (error) {
+      // Handle any errors that occur during the request
+      Swal.fire({
+        title: 'Error',
+        text: 'An unexpected error occurred.',
+        icon: 'error',
+        confirmButtonText: 'OK',
+      });
+      console.error('Error fetching order status:', error); // Log the error for debugging
+    } finally {
+      isFetchingOrderStatus = false; // Reset the flag regardless of success or failure
+    }
+  };
+
 	useEffect(() => {
 		//initialize datatable
 		if ($.fn.dataTable.isDataTable("#viewDataTable")) {
@@ -163,9 +220,23 @@ function ViewOrderTable({handleStatus}) {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-danger text-nowrap">
+                            <a 
+                              href="#"
+                              onClick={(e) => {
+                                e.preventDefault(); // Prevent the default anchor behavior
+                                getDetailedOrderStatus(order); // Call your function
+                              }}
+                              className=" text-nowrap"
+                              style={{
+                                textDecoration: 'none', 
+                                color: 'red', 
+                                transition: 'color 0.03s' 
+                              }} // Default color and transition
+                              onMouseEnter={(e) => (e.currentTarget.style.color = 'green')} // Change color on hover
+                              onMouseLeave={(e) => (e.currentTarget.style.color = 'red')} // Revert color when not hovering
+                            >
                               {order.ui_status}
-                            </span>
+                            </a>
                           )}
                         </td>
                       </tr>

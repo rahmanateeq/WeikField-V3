@@ -1285,26 +1285,20 @@ const PlaceOrder = (props) => {
                                       maxLength="3"
                                       onInput={maxLengthCheck}
                                       style={{ textAlign: "right" }}
-                                      onChange={(e) =>
-                                        handleQtyInCart(
-                                          e,
-                                          item.portal_item_code
-                                        )
-                                      }
-                                      onKeyPress={(event) => {
-                                        if (event.charCode < 48) {
-                                          event.preventDefault();
-                                        }else if(event.charCode ===48){
-                                          Swal.fire("You can't enter 0 here,instead click on Delete Icon.");
-                                          event.preventDefault();
-                                        }
-                                        
+                                      onFocus={(e) => {
+                                        e.target.previousValue = e.target.value; // Save current value as previous value on focus
                                       }}
-                                      // disabled={true}
+                                      onChange={(e) => handleQtyInCart(e, item.portal_item_code)}
+                                      onBlur={(e) => {
+                                        if (e.target.value === "0") {
+                                          Swal.fire("Quantity can't be 0. Please enter a valid quantity.");
+                                          e.target.value = e.target.previousValue; // Revert to the previous value
+                                          handleQtyInCart(e, item.portal_item_code);
+                                        }
+                                      }}
                                       type="number"
                                       className="qty-ctl"
                                       step="1"
-                                      // defaultValue={item.item_qty}
                                       placeholder={item.item_qty}
                                     />
 
