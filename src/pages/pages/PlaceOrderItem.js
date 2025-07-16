@@ -19,7 +19,7 @@ import { getUniqueByKey, getRoundOff } from "./utils/findUniqueBykey";
 import Swal from "sweetalert2";
 import { toast, Toaster } from "react-hot-toast";
 
-const PlaceOrder = (props) => {
+const PlaceOrderItem = (props) => {
 	const dispatch = useDispatch();
 	const navigate = useNavigate();
 	// using ref to handle refrence
@@ -66,6 +66,14 @@ const PlaceOrder = (props) => {
 	const [empty, setEmpty] = useState(false);
 	const [disableConfirm, setDisableConfirm] = useState(false);
 	const [showPromoModel, setShowPromoModel] = useState(true);
+    const [searchQuery, setSearchQuery] = useState(''); 
+    const [stockAvailable, setStockAvailable] = useState(false);
+    const [filteredData, setFilteredData] = useState([]);
+
+    const filteredProducts = filteredData.filter(product =>
+        product.portal_item_code.toUpperCase().includes(searchQuery.toUpperCase())
+      );
+
 	const handlePackType = (e) => {
 		{
 			setEmpty(false);
@@ -103,7 +111,8 @@ const PlaceOrder = (props) => {
 			data.customer_block_flag === "NO" &&
 			data.ndc_flag === "NO" &&
 			data.mssr_flag === "NO" &&
-			data.claim_flag === "NO"
+			data.claim_flag === "NO" &&
+            data.allow_cust_order_item_flag === "1"
 		) {
 			<>
 				{setSalePerson(data.mapped_so_name)}
@@ -112,6 +121,7 @@ const PlaceOrder = (props) => {
 				{setSelectedBrand({})}
 				{dispatch(setFlavour("null"))}
 				{dispatch(setProductLine("null"))}
+                {setStockAvailable(false)}
 				{await PlaceOrderService.getOrderDetails({ userProfile, data }).then(
 					(response) => {
 						dispatch(setOrderDetails(response.data.data));
@@ -123,7 +133,20 @@ const PlaceOrder = (props) => {
 			toast.error(
 				`Order Not Allowed after Cut Off - ${data.order_cut_off_timestamp}`
 			);
-		} else if (data.customer_block_flag === "YES") {
+		} else if ( data.allow_cust_order_item_flag === "0"){
+            setDisableFilter(true)
+            setDisableAddToCart(true)
+            setSelectedPackType("null")
+            dispatch(setFlavour("null"))
+            dispatch(setProductLine("null"))
+            setOrderData([])
+            setStockAvailable(false)
+            toast.error(
+				`This Distributor is not allowed for item level Ordering`
+			)
+            
+            
+        } else if (data.customer_block_flag === "YES") {
 			setDisableFilter(true);
 			setSalePerson(null);
 			dispatch(setOrderDetails("null"));
@@ -133,6 +156,7 @@ const PlaceOrder = (props) => {
 			dispatch(setProductLine("null"));
 			dispatch(setFlavour("null"));
 			setOrderData([]);
+            setStockAvailable(false)
 			toast.error("Blocked from Order, SAP No Sale Flag enabled");
 		} else if (data.ndc_flag === "YES") {
 			toast.error("Blocked for Ordering, NDC Not submitted");
@@ -142,34 +166,6 @@ const PlaceOrder = (props) => {
 			toast.error("Blocked for Ordering, Claim Not submitted");
 		}
 
-		// {
-		// 	data !== null && data.customer_block_flag === "YES".toUpperCase() ? (
-		// 		<>
-		// 			{setSalePerson(data.mapped_so_name)}
-		// 			{setDistributor(data)}
-		// 			{await PlaceOrderService.getOrderDetails({ userProfile, data }).then(
-		// 				(response) => {
-		// 					dispatch(setOrderDetails(response.data));
-		// 					setDisableFilter(false);
-		// 				}
-		// 			)}
-		// 		</>
-		// 	) : (
-		// 		<>
-		// 			{
-		// 				(setDisableFilter(true),
-		// 				Swal.fire({
-		// 					icon: "error",
-		// 					title: "Not Applicable",
-		// 					text: "Distributor has not added any product yet!",
-		// 				}))
-		// 			}
-		// 		</>
-		// 	);
-		// }
-
-		////////////////////////////////
-		// AXIOS WRAPPER FOR API CALL
 	};
 
 	const getProductLine = async (brand) => {
@@ -217,7 +213,7 @@ const PlaceOrder = (props) => {
 			setShowSearchFilter("d-block");
 			setShowSearchFilter(true);
 			setShowOrderSummary("d-none");
-			setShowPlaceOrder(false);
+			setShowPlaceOrder(false); 
 		}
 		// window.scrollTo({ top: 0, behavior: "smooth" });
 	}, [disableFilter, addTocart, orderData]);
@@ -260,7 +256,7 @@ const PlaceOrder = (props) => {
 		});
 		setDisableAddToCart(true);
 		if (filterData.length === 0) {
-			setEmpty(true);
+         setEmpty(true);
 		} else {
 			setEmpty(false);
 		}
@@ -271,8 +267,8 @@ const PlaceOrder = (props) => {
 					!addTocart.some(({ portal_item_code: id2 }) => id2 === id1)
 			);
 		}
-
-		setLoading(true);
+        
+		setLoading(true); setStockAvailable(false);
 		setOrderData(() => filterData);
 		setDisableFilter(true);
 		setLoading(false);
@@ -294,7 +290,7 @@ const PlaceOrder = (props) => {
 	}, []);
 
 	const addToCart = () => {
-		let currItemList = orderData.filter(function (el) {
+		let currItemList = filteredData.filter(function (el) {
 			return el.item_qty >= 1;
 		});
 
@@ -309,6 +305,8 @@ const PlaceOrder = (props) => {
 		dispatch(setAddToCart(order_grid_details_UniqueByKey));
 		setShowPlaceOrder(false);
 		setOrderData([]);
+        setSearchQuery('')
+        setStockAvailable(false)
 		setDisableAddToCart(true);
 	};
 
@@ -385,7 +383,7 @@ const PlaceOrder = (props) => {
 					{
 						inputFieldQty1.value = 0;
 					}
-					setOrderData((orderData) =>
+					setFilteredData((orderData) =>
 						orderData.map((data) =>
 							item.portal_item_code === data.portal_item_code
 								? { ...data, item_qty: 0 }
@@ -398,7 +396,7 @@ const PlaceOrder = (props) => {
 			});
 		}
 
-		setOrderData((orderData) =>
+		setFilteredData((orderData) =>
 			orderData.map((data) =>
 				item.portal_item_code === data.portal_item_code
 					? { ...data, item_qty: e.target.value }
@@ -476,9 +474,27 @@ const PlaceOrder = (props) => {
 			setDisableConfirm(false);
 		}
   }
+
+  const handleStockToggle = (isChecked) => {
+    setStockAvailable(isChecked)
+    if (isChecked) {
+      // Filter data where physical_inventory_qty > 0
+      const filtered = orderData.filter(item => parseInt(item.physical_inventory_qty) > 0);
+    //   console.log("filtered", filtered); // Log filtered data
+      setFilteredData(filtered);
+    } else {
+      // Reset filtered data if unchecked
+    //   console.log("orderData", orderData); // Log filtered data
+      setFilteredData(orderData);
+    }
+  };
+  useEffect(() =>{
+        setFilteredData(orderData)
+  },[orderData])
+
 	return (
     <>
-      <Helmet title="Place Order" />
+      <Helmet title="Place Order Item" />
       <div className="content-wrapper" ref={containerRef}>
         <div className="container-fluid">
           <div className="row">
@@ -488,7 +504,7 @@ const PlaceOrder = (props) => {
                   {" "}
                   <Link to="/dashboard">Dashboard</Link>{" "}
                 </li>
-                <li className="breadcrumb-item active">Place Order</li>
+                <li className="breadcrumb-item active">Place Order Items</li>
               </ol>
             </div>
           </div>
@@ -505,12 +521,12 @@ const PlaceOrder = (props) => {
                     className={`card card-primary border-0 d-sm-block ${showSearchFilter}`}
                   >
                     <div
-                      className="card-header collapsepanel"
+                      className="card-header-item collapsepanel"
                       data-toggle="collapse"
                       data-target="#collapseOne"
                       aria-expanded="true"
                     >
-                      Search Products
+                      Search Products 
                     </div>
                     <div
                       className="card-body collapse show py-0"
@@ -561,6 +577,13 @@ const PlaceOrder = (props) => {
                                         <option
                                           key={index}
                                           value={JSON.stringify(data)}
+                                          className={data.allow_cust_order_item_flag === "0" ? "strikeout" : ""}
+                                          style={{
+                                            textDecoration: data.allow_cust_order_item_flag === "0" ? "line-through" : "none", // Strikethrough
+                                            color: data.allow_cust_order_item_flag === "0" ? "red" : "inherit",               // Set color conditionally
+                                            opacity: data.allow_cust_order_item_flag === "0" ? 2 : 1,                        // Lower opacity for disabled items
+                                          }}
+                                         
                                         >
                                           {data.customer_name} -{" "}
                                           {data.customer_code}
@@ -848,57 +871,105 @@ const PlaceOrder = (props) => {
                             </div>
                           </div>
                           <div className="row">
-                            <div
-                              className="col-md-12"
-                              style={{ textAlign: "right" }}
-                            >
-                              <button
-                                type="button"
-                                onClick={(e) => (
-                                  setDisableFilter(false),
-                                  setDisableAddToCart(true),
-                                  // setSelectedPackType("null"),
-                                  // dispatch(setFlavour("null")),
-                                  // dispatch(setProductLine("null")),
-                                  setOrderData([])
-                                )}
-                                className="btn btn-danger btn-md"
-                              >
-                                <i className="fas fa fa-gear mr-2"></i> Reset
-                              </button>
+ 
+ {/* Switch Button */}
+ <div className="col-md-3">
+    <div className="row mb-2 text-right d-flex align-items-center">
+    <div className="col-md-12 d-flex align-items-center justify-content-between">   
+        <label htmlFor="flexSwitchCheckDefault" className="ml-2 mb-0 mt-2">
+        W/H stock:
+        </label>
+         <input
+         disabled={orderData.length === 0 ||
+            !disableAddToCart}
+        className="form-check-input mr-4 mt-2"
+        type="checkbox"
+        role="switch"
+        id="flexSwitchCheckDefault"
+        checked={stockAvailable}
+        onChange={(e) => handleStockToggle(e.target.checked)}
+      />
+    </div>
+  </div>
+</div>
 
-                              <button
-                                onClick={(e) => (
-                                  showFilterData(e), setDisableFilter(false)
-                                )}
-                                disabled={disableFilter}
-                                type="button"
-                                className="btn btn-primary btn-md ml-2"
-                                data-toggle="collapse"
-                                data-target="#collapseOne"
-                                aria-expanded="false"
-                              >
-                                Apply
-                              </button>
-                            </div>
-                          </div>
+  {/* Search Bar */}
+  <div className="col-md-5">
+    <div className="row mb-2">
+      <div className="col-md-4">
+        <label htmlFor="searchProductLine" className="control-label">
+          Search Product:
+        </label>
+      </div>
+      <div className="col-md-8">
+        <input
+          type="text"
+          id="searchProductLine"
+          name="searchProductLine"
+          className="form-control"
+          placeholder="Search Product"
+          value={searchQuery}
+          disabled={orderData.length === 0}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+    </div>
+  </div>
+
+
+  {/* Buttons */}
+  <div className="col-md-4 text-right" style={{ marginBottom: '2px' }}>
+    <button
+      type="button"
+      onClick={(e) => {
+        setDisableFilter(false);
+        setDisableAddToCart(true);
+        setSelectedPackType("null");
+        dispatch(setFlavour("null"));
+        dispatch(setProductLine("null"));
+        setOrderData([]);
+        setStockAvailable(false);
+        setSearchQuery('')
+      }}
+      className="btn btn-danger btn-md"
+    >
+      <i className="fas fa-gear mr-2"></i> Reset
+    </button>
+
+    <button
+      onClick={(e) => {
+        showFilterData(e);
+        setDisableFilter(false);
+      }}
+      disabled={disableFilter}
+      type="button"
+      className="btn btn-primary btn-md ml-2"
+      data-toggle="collapse"
+      data-target="#collapseOne"
+      aria-expanded="false"
+    >
+      Apply
+    </button>
+  </div>
+</div>
+
                         </form>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-              {orderData.length > 0 && (
+              {filteredProducts.length > 0 && (
                 <div className="card border-0 rounded-0 mb-3">
                   <div className="card-body">
                     <div className="table-responsive d-none d-sm-block">
                       <table
-                        className="table table-bordered"
-                        id="dataTable1"
+                        className="tables table-bordered"
+                        id="ItemDataTable"
                         width="100%"
                         cellSpacing="0"
                       >
-                        <thead>
+                        <thead >
                           <tr>
                             <th>Parent Code</th>
                             <th>Parent Code Desc</th>
@@ -929,9 +1000,9 @@ const PlaceOrder = (props) => {
                             />
                           ) : (
                             <>
-                              {orderData.length > 0 ? (
+                              {filteredProducts.length > 0 ? (
                                 <>
-                                  {orderData.map(
+                                  {filteredProducts.map(
                                     (item, index) => (
                                       (cartTotalQty =
                                         cartTotalQty + item.item_qty),
@@ -1057,7 +1128,7 @@ const PlaceOrder = (props) => {
                             </ol>
                           </div>
 
-                          {orderData.map((item, index) => (
+                          {filteredProducts.map((item, index) => (
                             <div className="cart-prod-div" key={index}>
                               <div className="cart-prod-title">
 
@@ -1171,7 +1242,7 @@ const PlaceOrder = (props) => {
                       )}
                     </div>
                   </div>
-                  {orderData.length > 0 && (
+                  {filteredProducts.length > 0 && (
                     <div className="card-footer bg-white">
                       <div className="row">
                         <div className="col-md-3 mb-3 d-sm-block">
@@ -1183,7 +1254,7 @@ const PlaceOrder = (props) => {
                               data-target="#collapseOne"
                               aria-expanded="true"
                               disabled={
-                                disableAddToCart || orderData.length === 0
+                                disableAddToCart || filteredProducts.length === 0
                               }
                             >
                               <i className="fas fa-cart-shopping mr-2"></i> Add
@@ -1220,15 +1291,17 @@ const PlaceOrder = (props) => {
               )}
 
               {empty && (
-                <h1 className="text-center card-header">No Data found</h1>
-              )}
+
+                  <h1 className="text-center card-header-item">No Data found</h1>
+                )}
+
             </div>
             {addTocart.length > 0 && (
               <>
                 <div className="col-md-4 d-sm-block">
                   <div className="card card-primary border-0 rounded-0 mb-3">
                     <div
-                      className={`card-header d-sm-block ${showOrderSummary}`}
+                      className={`card-header-item d-sm-block ${showOrderSummary}`}
                       // data-toggle="collapse"
                       // data-target="#collapseTwo"
                       // aria-expanded="true"
@@ -1289,28 +1362,20 @@ const PlaceOrder = (props) => {
                                         e.target.previousValue = item.item_qty; // Save current value as previous value on focus
                                       }}
                                       onChange={(e) => handleQtyInCart(e, item.portal_item_code)}
-                                      onBlur={(e) => {
+                                      onBlur={(e) => { 
                                         const inputValue = e.target.value.trim(); 
-                                        if (inputValue === "" || inputValue === "0") { 
-                                          Swal.fire("Quantity can't be empty or 0. Please enter a valid quantity.");
+                                        if (inputValue === "" || inputValue === "0") {
+                                          Swal.fire("Quantity can't be empty or 0. Please enter a valid quantity.")
                                           e.target.value = e.target.previousValue  
                                           handleQtyInCart(e, item.portal_item_code);
                                         }
                                       }}
+                                      
                                       type="number"
                                       className="qty-ctl"
                                       step="1"
                                       placeholder={item.item_qty}
                                     />
-
-                                    {/* <span className="cart-prod-lbl ml-2">
-																			{item.item_qty} *{" "}
-																			{item.portal_billing_price} =
-																			<b>
-																				{item.item_qty *
-																					item.portal_billing_price}
-																			</b>
-																		</span> */}
                                     <div
                                       className="cart-prod-desc"
                                       style={{ float: "right" }}
@@ -1653,4 +1718,4 @@ const PlaceOrder = (props) => {
   );
 };
 
-export default PlaceOrder;
+export default PlaceOrderItem;

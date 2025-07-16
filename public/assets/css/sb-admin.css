@@ -7,7 +7,8 @@
 }
 .tables thead th {
     border-bottom: 1px solid #dee2e6;
-    background: #25e461;
+    background: #3dae2b;
+	color: #fff;
 }
 .table{
 	width: 25%;
@@ -1766,7 +1767,7 @@ input[type=number] {
 	gap: 8px;
 }
 
-.input-field {
+.swal-input-field {
 	width: 100%;
 	max-width: 150px;
 }
@@ -1871,11 +1872,83 @@ input[type=number] {
 		color:#fff
 	  }
 
+ /* css for place_order_itemwise  @Atiqur Rahman */
 
-	 
+ .card.card-primary .card-header-item {
+    background: #3dae2b;
+    color: #fff;
+    cursor: pointer
+}  
+.card-header-item.noBgHdr {
+    background: #fff;
+    border-bottom: none;
+    padding-bottom: 0;
+    color: #3dae2b;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+}  
+ .dashboard-blocks .card-header-item {
+    background: transparent;
+    border-bottom: 0;
+    color: #fff;
+} 
 
+.card.card-primary .card-header-item {
+    padding: 0.75rem 1.25rem;
+    background: #3dae2b;
+    color: #fff;
+    cursor: pointer;
+}
+.form-check-input[type="checkbox"][role="switch"] {
+	width: 3em; /* Increased width */
+	height: 1.5em; /* Increased height */
+	background-color: #ddd; /* Default background color */
+	border-radius: 1.5em; /* Rounded edges */
+	position: relative;
+	appearance: none; /* Remove default checkbox styling */
+	outline: none; /* Remove focus outline */
+	cursor: pointer; /* Pointer cursor on hover */
+	transition: background-color 0.3s ease; /* Smooth transition for background color */
+  }
+  
+  .form-check-input[type="checkbox"][role="switch"]:checked {
+	background-color: #3dae2b; /* Background color when checked */
+  }
+  
+  .form-check-input[type="checkbox"][role="switch"]:disabled {
+	background-color: #bbb; /* Background color when disabled */
+	cursor: not-allowed; /* Change cursor to indicate disabled */
+  }
+  
+  .form-check-input[type="checkbox"][role="switch"]::before {
+	content: '';
+	position: absolute;
+	top: 0.15em; /* Adjust vertical centering */
+	left: 0.15em; /* Adjust horizontal starting position */
+	width: 1.2em; /* Increased knob width */
+	height: 1.2em; /* Increased knob height */
+	background-color: #fff; /* Knob color */
+	border-radius: 50%; /* Circular knob */
+	transition: transform 0.3s ease; /* Smooth transition for knob movement */
+  }
+  
+  .form-check-input[type="checkbox"][role="switch"]:checked::before {
+	transform: translateX(1.5em); /* Increased distance the knob moves */
+  }
+  
+  .form-check-input:disabled {
+	cursor: not-allowed !important; /* Enforce cursor style */
+	background-color: #f0f0f0; /* Light gray background when disabled */
+	border: 0.1px solid red; /* Red border for disabled state */
+  }
+  
+  .form-check-input:disabled::before {
+	background-color: #e0e0e0; /* Knob color when disabled */
+	transform: translateX(0); /* Keep knob in place when disabled */
+  }
+  
  
-
 
 
   

@@ -649,6 +649,7 @@ const Mssr = (props) => {
         console.log("Error in Confirm", error)
     }).finally(() =>{
       setLoader(false)
+      setDisableConfirm(false);
     });
   };
 
@@ -682,6 +683,7 @@ const saveDraftMssrOrder = async (updatedCartData) => {
       console.log("Error in Draft save ", error)
   }).finally(() =>{
     setLoader(false)
+    setDisableConfirm(false)
   });
 };
 
@@ -826,9 +828,25 @@ const confirmMssrOrder = async () => {
     showCancelButton: true,
     confirmButtonColor: "#3dae2b",
     cancelButtonColor: "#e42526",
-    confirmButtonText: "Yes, save it!",
+    confirmButtonText: disableConfirm ? "Processing..." : "Yes, save it!",
     allowOutsideClick: false, 
     focusConfirm: false,
+    didOpen: () => {
+      // Get the confirm button element
+      const confirmBtn = Swal.getConfirmButton();
+      if (disableConfirm) {
+        confirmBtn.disabled = true;
+      } else {
+        confirmBtn.disabled = false;
+      }
+      // Attach listener to the confirm checkbox (if needed)
+      const confirmCheck = Swal.getPopup().querySelector("#confirmCheck");
+      confirmCheck.addEventListener("change", () => {
+        if (confirmCheck.checked) {
+          Swal.resetValidationMessage();
+        }
+      });
+    },
     preConfirm: () => {
       const confirmCheck = Swal.getPopup().querySelector('#confirmCheck');
 

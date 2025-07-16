@@ -27,6 +27,7 @@ import P2s from "./pages/pages/P2s";
 import DamageDiscPage from "./pages/pages/DamageDisc";
 import DamageDiscViewPage from "./pages/pages/DamageDiscView";
 import Ticket from "./pages/pages/Ticket";
+import PlaceOrderItem from "./pages/pages/PlaceOrderItem";
 
 function App() {
   useLayoutEffect(() => {
@@ -213,7 +214,15 @@ function App() {
               </>
             }
           />
-
+          <Route
+            path="/placeorderitem"
+            element={
+              <>
+                <Header />
+                <PlaceOrderItem />
+              </>
+            }
+          />
           <Route path="*" element={<PageNotFound />} />
         </Routes>
         {/* </HashRouter> */}

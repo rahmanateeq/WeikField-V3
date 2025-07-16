@@ -1,21 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
-import Swal from "sweetalert2";
+import React, { useRef, useState } from "react";
 import MssrService from "../../axios/services/api/mssr";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  getViewMssrDetailsLines,
-  getStockEntryNo,
-} from "../../redux/actions/mssrAction";
-import {
-  getUniqueByKey,
-  getRoundOff,
-} from "../../pages/pages/utils/findUniqueBykey";
+import { getViewMssrDetailsLines } from "../../redux/actions/mssrAction";
+import { getUniqueByKey } from "../../pages/pages/utils/findUniqueBykey";
 import { setAddToCart } from "../../redux/actions/mssrAction";
 import { ColorRing } from "react-loader-spinner";
 
 const MssrModel = ({ id, isEditAble, data }) => {
   const dispatch = useDispatch();
-  const [newMssrLines,setNewMssrLines] = useState([]);   //--------10-12-2023
+  const [newMssrLines, setNewMssrLines] = useState([]);
   const input1ref = useRef(null);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,9 +16,16 @@ const MssrModel = ({ id, isEditAble, data }) => {
   const [newMssr, setNewMssr] = useState([]);
   const userProfile = useSelector((state) => state.userProfile);
   const mssr = useSelector((state) => state.mssr);
-  const { addTocart, getViewStockDetailsLines} = mssr;
+  const { addTocart, getViewStockDetailsLines } = mssr;
+
+  // --- State for custom inner modal ---
+  const [innerModalVisible, setInnerModalVisible] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [closingStock, setClosingStock] = useState("");
+  const [price, setPrice] = useState("");
+  const [validationMessage, setValidationMessage] = useState("");
+
   const handleSearch = async () => {
-    // AXIOS WRAPPER FOR API CALL
     setLoading(true);
     await MssrService.addNewMssr({ userProfile, search }).then((response) => {
       setSearchData(response.data.data.search_item_details);
@@ -33,118 +33,77 @@ const MssrModel = ({ id, isEditAble, data }) => {
     setLoading(false);
   };
 
+
+  
+  const maxLengthCheck = (object) => {
+    if (object.target.value.length > object.target.maxLength) {
+      object.target.value = object.target.value.slice(
+        0,
+        object.target.maxLength
+      );
+    }
+    object.target.value =
+      !!object.target.value && Math.abs(object.target.value) >= 0
+        ? Math.abs(object.target.value)
+        : null;
+  };
+  // Open custom inner modal instead of calling Swal
   const myAction = (e, item) => {
     e.preventDefault();
-    Swal.fire({
-      // title: `Item Name:${item.brand}`,
-      html:
-        // `<p style="text-align:left"><strong>${item.item_code}</strong> </p>` +
-        // `<p style="text-align:left">${item.item_name}</p>` +
-        `<p style="text-align:left"><span style="font-size:12px;"> ${item.item_details}</span></p>` +
-        `<div class="input-row" style="display: flex; justify-content: space-between; gap: 2px;">` +
-        `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input1" style="border:1px solid gray; border-radius:5px;" placeholder='Closing Stock' class="swal-input input-field">` +
-        `<input type="number" min="10" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57)  || event.charCode == 46)" id="swal-input2" style="border:1px solid gray; border-radius:5px;" placeholder='Price' class="swal-input input-field">` +
-        // `<input type="number" min="0" onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))" id="swal-input3" style="border:1px solid gray" placeholder='Expiry Qty' class="swal-input input-field">` +
-        `</div>`,
-      showCancelButton: true,
-      confirmButtonText: "Confirm",
-      cancelButtonText: "Cancel",
-      allowOutsideClick: false, 
-      customClass: {
-        confirmButton: "btn btn-primary",
-        cancelButton: "btn btn-secondary",
-      },
-      didOpen: () => {
-        const priceInput = document.getElementById("swal-input2");
-        
-        // Add event listener to clear validation message when input changes
-        priceInput.addEventListener("input", () => {
-          const price = parseFloat(priceInput.value);
-          const decimalPattern = /^\d+(\.\d{1,2})?$/;  // Ensures up to 2 decimal places
-          if (!isNaN(price) && price >= 10 && price <= 9999.99 && decimalPattern.test(priceInput.value)) {
-            Swal.resetValidationMessage(); // Reset validation when input is valid
-          }
-        });
-      },
-      preConfirm: () => {
-        const price = parseFloat(document.getElementById("swal-input2").value);
-        const decimalPattern = /^\d+(\.\d{1,2})?$/;  // Validates up to 2 decimal places
-        
-        if (isNaN(price) || price < 10 || price > 9999.99 || !decimalPattern.test(price)) {
-          Swal.showValidationMessage(
-            `Price must be between 10 and 9999.99 up to two decimal`
-          );
-          return false;
-        }
-
-        return [document.getElementById("swal-input1").value,
-                 document.getElementById('swal-input2').value]
-        //         document.getElementById('swal-input3').value  ];
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const [input1, input2] = result.value;
-        // const [input1] = result.value;
-
-        if (isEditAble === "true") {
-          console.log(item)
-          const skuData = {
-            item_code: item.item_code,
-            item_name: item.item_name,
-            cls_stk_qty_saleable: input1 ? input1 : "0",
-            action_flag: "I",
-            asp_gsv: input2,
-            asp_nsv: input2,
-          };
-           // Check if the item with the same "item_code" already exists
-            let new_mssr_added = [...getViewStockDetailsLines, skuData];
-            // const itemIndex = new_mssr_added.findIndex(
-            //   (existingItem) => existingItem.item_code === skuData.item_code
-            // );
-
-            // if (itemIndex !== -1) {
-            //   // Replace the old item with the new skuData
-            //   new_mssr_added[itemIndex] = skuData;
-            // } else {
-            //   // Add new skuData to the array if not already present
-            //   new_mssr_added.push(skuData);
-            // }
-          //  // For removing duplicate key
-           const key = "item_code";
-           const new_mssr_added_UniqueByKey = getUniqueByKey( new_mssr_added, key
-           );
-          //  console.log("new sku", new_mssr_added_UniqueByKey)
-          dispatch(getViewMssrDetailsLines(new_mssr_added_UniqueByKey));
-        } else {
-          const newData = {
-            item_code: item.item_code,
-            item_name: item.item_name,
-            item_details: item.item_details,
-            physical_closing: input1 ? input1 : "0",
-            asp_gsv: input2,
-            asp_nsv: input2,
-            // trasfer_qty:input2 ? input2 : "0",
-            // expire_qty:input3 ? input3 : "0",
-            mssr_entry: true,
-          };
-          console.log("newData", newData);
-
-          setNewMssr((prev) => [...prev, newData]);
-
-          let added_to_cart = [...addTocart, newData];
-          // For removing duplicate key
-          const key = "item_code";
-          const order_grid_details_UniqueByKey = getUniqueByKey(
-            added_to_cart,
-            key
-          );
-          // store the data in redux store
-          dispatch(setAddToCart(order_grid_details_UniqueByKey));
-        }
-      }
-    });
+    setSelectedItem(item);
+    setClosingStock("");
+    setPrice("");
+    setValidationMessage("");
+    setInnerModalVisible(true);
   };
-  // console.log("newMssr",newMssr)
+
+  // Validate inputs and process data from the custom modal
+  const handleInnerModalConfirm = () => {
+    const parsedPrice = parseFloat(price);
+    
+    const decimalPattern = /^\d+(\.\d{1,2})?$/;
+    if (isNaN(parsedPrice) || parsedPrice < 10 || parsedPrice > 9999.99 || !decimalPattern.test(price)) {
+      setValidationMessage("Price must be between 10 and 9999.99 up to two decimal");
+      return;
+    }
+    if (isEditAble === "true") {
+      const skuData = {
+        item_code: selectedItem.item_code,
+        item_name: selectedItem.item_name,
+        cls_stk_qty_saleable: closingStock || "0",
+        action_flag: "I",
+        asp_gsv: price,
+        asp_nsv: price,
+      };
+      let new_mssr_added = [...getViewStockDetailsLines, skuData];
+      // For removing duplicate key
+      const key = "item_code";
+      const new_mssr_added_UniqueByKey = getUniqueByKey( new_mssr_added, key
+      );
+     //  console.log("new sku", new_mssr_added_UniqueByKey)
+     dispatch(getViewMssrDetailsLines(new_mssr_added_UniqueByKey));
+    } else {
+      const newData = {
+        item_code: selectedItem.item_code,
+        item_name: selectedItem.item_name,
+        item_details: selectedItem.item_details,
+        physical_closing: closingStock || "0",
+        asp_gsv: price,
+        asp_nsv: price,
+        mssr_entry: true,
+      };
+      setNewMssr((prev) => [...prev, newData]);
+      let added_to_cart = [...addTocart, newData];
+      const key = "item_code";
+      const order_grid_details_UniqueByKey = getUniqueByKey(added_to_cart, key);
+      dispatch(setAddToCart(order_grid_details_UniqueByKey));
+    }
+    setInnerModalVisible(false);
+  };
+
+  const handleInnerModalCancel = () => {
+    setInnerModalVisible(false);
+  };
 
   return (
     <div
@@ -268,6 +227,93 @@ const MssrModel = ({ id, isEditAble, data }) => {
           )}
         </div>
       </div>
+
+      {/* Custom Inner Modal (pure React, no Bootstrap JS) */}
+      {innerModalVisible && (
+        <>
+         {/* Backdrop */}
+         <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100%",
+              height: "100%",
+              backgroundColor: "rgba(0,0,0,0.5)",
+              zIndex: 1050,
+            }}
+          ></div>
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              background: "#fff",
+              padding: "20px",
+              zIndex: 1060,
+              borderRadius: "5px",
+              width: "90%",
+              maxWidth: "400px",
+            }}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h5>Enter Details for {selectedItem?.item_code}</h5>
+              
+            </div>
+            <p style={{ textAlign: "left", fontSize: "12px" }}>{selectedItem?.item_details}</p>
+            <div
+              className="input-row"
+              style={{ display: "flex", justifyContent: "space-between", gap: "2px", marginTop: "10px" }}
+            >
+              <input
+                type="number"
+                min={1}
+                maxLength="5"
+                onInput={maxLengthCheck}
+                value={closingStock}
+                onChange={(e) => {
+                  setClosingStock(e.target.value);
+                  setValidationMessage("");
+                }}
+                onKeyPress={(event) => {
+                  if (event.charCode < 48) {
+                    event.preventDefault();
+                  }
+                }}
+                placeholder="Closing Stock"
+                style={{ border: "1px solid gray", borderRadius: "5px", width: "48%" }}
+                className="form-control"
+              />
+              <input
+                type="number"
+                min="10"
+                value={price}
+                onChange={(e) => {
+                  setPrice(e.target.value);
+                  setValidationMessage("");
+                }}
+                placeholder="Price"
+                style={{ border: "1px solid gray", borderRadius: "5px", width: "48%" }}
+                className="form-control"
+              />
+            </div>
+            {validationMessage && (
+              <div style={{ color: "red", marginTop: "8px", fontSize: "0.9rem" }}>{validationMessage}</div>
+            )}
+            <div style={{ marginTop: "20px", textAlign: "right" }}>
+              <button onClick={handleInnerModalCancel} className="btn btn-secondary" style={{ marginRight: "10px" }}>
+                Cancel
+              </button>
+              <button onClick={handleInnerModalConfirm} className="btn btn-primary">
+                Confirm
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

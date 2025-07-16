@@ -80,6 +80,8 @@ const Header = (props) => {
       showpopUp("Modify Order");
     } else if (path === "/placeorder" && addTocart.length > 0) {
       showpopUp("Place Order");
+    } else if (path === "/placeorderitem" && addTocart.length > 0){
+      showpopUp("Place Order Item");
     } else {
       return;
     }
@@ -404,22 +406,22 @@ const DamageDiscLoginPopup = async () => {
               </li>        
             ))}
 
-            {/* <li
+            <li  // place Order Item router
                 onClick={toggleClass}
-                className={`nav-item ${window.location.pathname === "/ticket" ? "active" : ""}`}
+                className={`nav-item ${window.location.pathname === "/placeorderitem" ? "active" : ""}`}
                 data-toggle="tooltip"
                 data-placement="right"
-                title="Ticket"
+                title="Place Order (Item)"
               >
                 <Link
                   className="nav-link"
-                  to="/ticket"
+                  to="/placeorderitem"
                   onClick={() => showPopUps(window.location.pathname)}
                 >
-                  <i className="fa fa-file"></i>
-                  <span className="nav-link-text"> Ticket</span>
+                  <i className="fa fa-list-alt"></i>
+                  <span className="nav-link-text"> Place Order (Item) </span>
                 </Link>
-              </li> */}
+              </li>
             
           {show_otp_menu_flag ===1 &&
             <li
