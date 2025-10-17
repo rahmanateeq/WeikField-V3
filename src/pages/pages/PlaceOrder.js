@@ -2,6 +2,7 @@ import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { Helmet } from "react-helmet";
+import { Tooltip } from "bootstrap";
 import PlaceOrderService from "../../axios/services/api/placeOrder";
 import {
 	setAddToCart,
@@ -37,7 +38,7 @@ const PlaceOrder = (props) => {
 	const { flavour_details } = flavour;
 	const { product_line_details } = productLine;
 	const { distributor_details, brand_details, pack_type_details } = orderFilter;
-	const { order_grid_details } = orderDetails;
+	const { order_grid_details, base_value } = orderDetails;  
 	const { addTocart, selectedDistributer,selectedSalePerson } = placeOrder;
 	// Collecting data from Redux store Ends
 
@@ -86,16 +87,20 @@ const PlaceOrder = (props) => {
 			dispatch(setProductLine("null"));
 		}
 		setSelectedPackType(JSON.parse(e.target.value));
+    
 	};
 
 	const getOrderFilters = async () => {
 		//AXIOS WRAPPER FOR API CALL
+    setDistributor(null);
+    dispatch(setOrderFilter([]));
 		await PlaceOrderService.getOrderFilters(userProfile).then((response) => {			
 			dispatch(setOrderFilter(response.data.data));
 		});
 		//AXIOS WRAPPER FOR API CALL
 	};
 	const getOrderDetails = async (data) => {
+    //call filter functio here 
 		// AXIOS WRAPPER FOR API CALL
 		/////////////////////////////////////////
 		if (
@@ -106,6 +111,7 @@ const PlaceOrder = (props) => {
 			data.claim_flag === "NO"
 		) {
 			<>
+      {dispatch(setAddToCart([]))}
 				{setSalePerson(data.mapped_so_name)}
 				{setDistributor(data)}
 				{setSelectedPackType("")}
@@ -115,6 +121,8 @@ const PlaceOrder = (props) => {
 				{await PlaceOrderService.getOrderDetails({ userProfile, data }).then(
 					(response) => {
 						dispatch(setOrderDetails(response.data.data));
+            dispatch(setSelectedDistributor(data))
+            dispatch(setSelectedSalePerson(data.mapped_so_name))
 						setDisableFilter(false);
 					}
 				)}
@@ -408,6 +416,21 @@ const PlaceOrder = (props) => {
 		setDisableAddToCart(false);
 	};
 
+ useEffect(() => {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    const tooltipList = [...tooltipTriggerList].map(
+      (tooltipTriggerEl) =>
+        new Tooltip(tooltipTriggerEl, {
+          delay: { show: 0, hide: 0 },
+          trigger: "hover",
+        })
+    );
+
+    // Cleanup on unmount
+    return () => {
+      tooltipList.forEach((tooltip) => tooltip.dispose());
+    };
+  }, []);
 	const handleQtyInCart = (e, id) => {
 		// Handle Order summary quantity and store in redux store.
 		dispatch(
@@ -421,22 +444,72 @@ const PlaceOrder = (props) => {
 		);
 		// setDisableAddToCart(false);
 	};
-
 	const saveOrder = async (e) => {
-		e.preventDefault();
-    await Swal.fire({
-      title: 'Are you sure?',
-      text: "You want to save this orders!",
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, save it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-       confirmOrder()
-      }
-    })
+    e.preventDefault();
+    addToCartTotal = getRoundOff(addToCartTotal, 2)
+     const base = Number(base_value);
+      if (addToCartTotal >= base) {
+      await Swal.fire({
+        title: 'Are you sure?',
+        text: "You want to save this orders!",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, save it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+        confirmOrder()
+        }
+      })
+    }else{
+    Swal.fire({
+      title: `<span style="
+          font-size: 18px;
+          font-weight: 600;
+          color: #b91c1c;
+          font-family: 'Segoe UI', Roboto, sans-serif;
+        ">
+          Cart Value Too Low
+        </span>`,
+      html: `
+        <div style="
+          font-family: 'Segoe UI', Roboto, sans-serif;
+          font-size: 15px;
+          color: #374151;
+          background-color: #fef3f2;
+          padding: 16px;
+          border-radius: 12px;
+          line-height: 1.6;
+          margin-top: 8px;
+        ">
+          <div style="margin-bottom: 8px;">
+            Your current cart value is 
+            <b style="color:#111;">₹${addToCartTotal.toLocaleString()}</b>.
+          </div>
+          <div style="margin-bottom: 8px;">
+            Cart value should be equal or greater than 
+            <b style="color:#dc2626;">₹${base_value.toLocaleString()}</b>.
+          </div>
+          <div>
+            Please add more items to proceed with the order.
+          </div>
+        </div>
+      `,
+      background: "#ffffff",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#2563eb",
+      padding: "20px 16px",
+        customClass: {
+        popup: "swal2-rounded-lg swal2-shadow",
+    confirmButton: "swal2-btn",
+      },
+      
+      hideClass: {
+        popup: "animate__animated animate__fadeOutUp",
+      },
+    });
+  }
 	};
   const confirmOrder = async()=>{
     setDisableConfirm(true);
@@ -461,6 +534,7 @@ const PlaceOrder = (props) => {
 								</span>,
 								{ duration: 4000 },
 								dispatch(setAddToCart([]),
+                dispatch(setOrderDetails("null")),
 								dispatch(setSelectedDistributor("null")),
 								dispatch(setSelectedSalePerson("")),
 								navigate("/dashboard"))
@@ -476,6 +550,117 @@ const PlaceOrder = (props) => {
 			setDisableConfirm(false);
 		}
   }
+
+  useEffect(() =>{
+    if (!order_grid_details || order_grid_details.length === 0) {
+      return;
+    }
+    const moqItems = order_grid_details.filter(item => item.moq > 0)
+    // Merge previous order and current order
+    if(moqItems.length > 0){
+      const mappedItems = moqItems.map(({ moq, ...rest }) => ({
+      ...rest,
+      moq,
+      item_qty: moq, // rename moq -> item_qty
+    }));
+
+      let added_to_cart = [...addTocart, ...mappedItems];
+      // For removing duplicate key
+      const key = "portal_item_code";
+      const order_grid_details_UniqueByKey = getUniqueByKey(added_to_cart, key);
+      // store the must order SKU data in redux store
+      dispatch(setAddToCart(order_grid_details_UniqueByKey));
+    }
+
+  },[order_grid_details])
+
+
+    const orderSummaryReset = async () => {
+ const result = await Swal.fire({
+  title: "Are you sure?",
+  html: `
+    <div style="
+      font-size: 16px;
+      color: #444;
+      margin-top: 5px;
+      margin-bottom: 10px;
+    ">
+      Do you want to reset the <b style='color:#d33;'>Order Summary</b>?
+    </div>
+  `,
+  icon: "warning",
+  showCancelButton: true,
+  confirmButtonText: "Yes, reset it",
+  cancelButtonText: "Cancel",
+  confirmButtonColor: "#d33",
+  cancelButtonColor: "#3085d6",
+  reverseButtons: false, // ✅ Confirm button first
+  background: "#fff",
+  backdrop: `
+    rgba(0,0,0,0.4)
+    left top
+    no-repeat
+  `,
+  customClass: {
+    popup: "swal2-custom-popup",
+  },
+  didRender: () => {
+    // ✅ Inline button layout styling
+    const actions = document.querySelector(".swal2-actions");
+    if (actions) {
+      actions.style.display = "flex";
+      actions.style.flexDirection = "row";
+      actions.style.justifyContent = "center";
+      actions.style.gap = "14px";
+      actions.style.marginTop = "12px";
+    }
+
+    // ✅ Optional: style the confirm/cancel buttons directly
+    const confirmBtn = document.querySelector(".swal2-confirm");
+    const cancelBtn = document.querySelector(".swal2-cancel");
+
+    if (confirmBtn) {
+      confirmBtn.style.padding = "8px 18px";
+      confirmBtn.style.fontSize = "14px";
+      confirmBtn.style.fontWeight = "600";
+      confirmBtn.style.borderRadius = "6px";
+      confirmBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.15)";
+    }
+
+    if (cancelBtn) {
+      cancelBtn.style.padding = "8px 18px";
+      cancelBtn.style.fontSize = "14px";
+      cancelBtn.style.fontWeight = "600";
+      cancelBtn.style.borderRadius = "6px";
+      cancelBtn.style.backgroundColor = "#fff";
+      cancelBtn.style.color = "#3085d6";
+      cancelBtn.style.border = "1px solid #3085d6";
+      cancelBtn.style.boxShadow = "0 2px 6px rgba(0,0,0,0.1)";
+    }
+  },
+});
+
+  if (result.isConfirmed) {
+     // ✅ Reset logic here
+     setDisableFilter(false);
+      setDisableAddToCart(true);
+      setSelectedPackType("");
+      setSelectedBrand({});
+      setDistributor(null);
+      dispatch(setAddToCart([]));
+      dispatch(setOrderDetails("null"));
+      dispatch(setSelectedDistributor("null"));
+      getOrderFilters();
+      dispatch(setSelectedSalePerson(""));
+      
+    Swal.fire({
+      icon: "success",
+      title: "Order Summary Reset",
+      showConfirmButton: false,
+      timer: 1500,
+    });
+  }
+};
 	return (
     <>
       <Helmet title="Place Order" />
@@ -849,21 +1034,28 @@ const PlaceOrder = (props) => {
                           </div>
                           <div className="row">
                             <div
-                              className="col-md-12"
+                              className="col-md-12 mb-3"
                               style={{ textAlign: "right" }}
                             >
                               <button
                                 type="button"
-                                onClick={(e) => (
-                                  setDisableFilter(false),
-                                  setDisableAddToCart(true),
-                                  // setSelectedPackType("null"),
-                                  // dispatch(setFlavour("null")),
-                                  // dispatch(setProductLine("null")),
-                                  setOrderData([])
-                                )}
-                                className="btn btn-danger btn-md"
-                              >
+                                onClick={() => {
+                                setDisableFilter(false);
+                                setDisableAddToCart(true);
+                                setOrderData([]);
+                                setSelectedPackType("");
+                                setSelectedBrand({});
+                                
+                                if (addTocart.length === 0) {
+                                  setDistributor(null);
+                                  dispatch(setSelectedDistributor("null"));
+                                  getOrderFilters();
+                                  dispatch(setSelectedSalePerson(""));
+                                }
+                              }}
+                              className="btn btn-danger btn-md"
+                            >
+
                                 <i className="fas fa fa-gear mr-2"></i> Reset
                               </button>
 
@@ -1258,17 +1450,26 @@ const PlaceOrder = (props) => {
                                 item.portal_billing_price * item.item_qty),
                               (
                                 <div
-                                  className="cart-prod-div-order"
+                                   className={`cart-prod-div-order ${Number(item.moq) > 0 ? "moq-warning" : ""}`}
                                   key={index}
                                 >
                                   <div className="cart-prod-trash">
-                                    <i
-                                      onClick={(e) => removeFromCart(e, item)}
-                                      className="text-danger fa fa-trash mr-1"
-                                    ></i>
-                                  </div>
+                                  {item.ms_flag.toUpperCase() === "N" ?
+                                  (<i
+                                    className="text-muted fa fa-info p-2 cursor-pointer"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    title="This is a required item and cannot be removed"
+                                  />) : (
+                                  <i
+                                    onClick={(e) => removeFromCart(e, item)}
+                                    className=" text-danger fa fa-trash mr-1"
+                                  ></i>
+                                  )}    
+                                </div>
                                   <div className="cart-prod-title">
-                                    {item.portal_item_code}
+                                    {item.portal_item_code} 
+                                  {Number(item.moq) > 0 && <span style={{marginLeft: "2px", color: "red",fontWeight: "bold", fontSize: "18px" }}>*</span>}
                                   </div>
                                   <div className="cart-prod-desc">
                                     <span className="cart-prod-val">
@@ -1290,13 +1491,46 @@ const PlaceOrder = (props) => {
                                       }}
                                       onChange={(e) => handleQtyInCart(e, item.portal_item_code)}
                                       onBlur={(e) => {
-                                        const inputValue = e.target.value.trim(); 
-                                        if (inputValue === "" || inputValue === "0") { 
-                                          Swal.fire("Quantity can't be empty or 0. Please enter a valid quantity.");
-                                          e.target.value = e.target.previousValue  
-                                          handleQtyInCart(e, item.portal_item_code);
-                                        }
-                                      }}
+                                            const inputValue = e.target.value.trim();
+                                            const currentValue = parseInt(inputValue, 10) || 0;
+                                            const prevValue = parseInt(e.target.previousValue, 10) || item.moq;
+
+                                            // 🚫 Empty or 0
+                                            if (inputValue === "" || currentValue === 0) {
+                                              Swal.fire("Quantity can't be empty or 0. Please enter a valid quantity.");
+                                              e.target.value = e.target.previousValue;
+                                              handleQtyInCart(e, item.portal_item_code);
+                                              return;
+                                            }
+
+                                            // 📌 If moq_flag = Y → must be >= 1
+                                            if (item.moq_flag.toUpperCase() === "Y" && currentValue < 1) {
+                                              Swal.fire("Quantity must be at least 1.");
+                                              e.target.value = e.target.previousValue;
+                                              handleQtyInCart(e, item.portal_item_code);
+                                              return;
+                                            }
+
+                                            // 📌 If moq_flag = N → can only increase (not decrease)
+                                            if (item.moq_flag.toUpperCase() === "N") {
+                                              if (currentValue < item.moq) {
+                                                Swal.fire(`You can only increase the quantity (minimum is ${item.moq}).`);
+
+                                                // if previousValue is >= moq, keep it, otherwise fallback to moq
+                                                if (prevValue >= item.moq) {
+                                                  e.target.value = prevValue;
+                                                } else {
+                                                  e.target.value = item.moq;
+                                                }
+
+                                                handleQtyInCart(e, item.portal_item_code);
+                                                return;
+                                              }
+                                            }
+
+                                            // ✅ Passed validations
+                                            handleQtyInCart(e, item.portal_item_code);
+                                          }}
                                       type="number"
                                       className="qty-ctl"
                                       step="1"
@@ -1352,6 +1586,14 @@ const PlaceOrder = (props) => {
                         Confirm Order{" "}
                         <i className="fa-solid fa-circle-arrow-right"></i>
                       </button>
+                      <button
+                       onClick={orderSummaryReset}
+                        type="button"
+                        className="btn btn-danger btn-block btn-lg my-3 d-sm-block d-none"
+                      >
+                       Reset the Order Summary{" "}
+                        <i className="fa-solid fa-circle-arrow-up"></i>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1372,6 +1614,15 @@ const PlaceOrder = (props) => {
                   >
                     Add More Line{" "}
                     <i className="fa-solid fa-circle-arrow-right"></i>
+                  </button>
+                  <button
+                    onClick={orderSummaryReset}
+                    type="button"
+                    className={`btn btn-danger btn-block btn-lg my-3 ${showOrderSummary}`}
+                    aria-expanded="true"
+                  >
+                   Reset the Order Summary{" "}
+                    <i className="fa-solid fa-circle-arrow-up"></i>
                   </button>
                 </div>
               </>

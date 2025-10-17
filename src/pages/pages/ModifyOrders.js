@@ -17,6 +17,7 @@ import { getRoundOff, getUniqueByKey } from "./utils/findUniqueBykey";
 import Swal from "sweetalert2";
 import { toast, Toaster } from "react-hot-toast";
 import SearchFilter from "../../components/ModifyOrder/SearchFilter";
+import { Tooltip } from "bootstrap";
 
 const ModifyOrders = (props) => {
   const dispatch = useDispatch();
@@ -37,7 +38,7 @@ const ModifyOrders = (props) => {
   const { flavour_details } = flavour;
   const { product_line_details } = productLine;
   const { distributor_details, brand_details, pack_type_details } = orderFilter;
-  const { order_grid_details_UniqueByKey, order_details } = orderDetails;
+  const { order_grid_details_UniqueByKey, order_details, base_value } = orderDetails;
   const { addTocart, selectedOrder } = placeOrder;
   // Collecting data from Redux store Ends
 
@@ -137,7 +138,8 @@ const ModifyOrders = (props) => {
         key
       );
       let order_details = response.data.data.order_details;
-      let data = { order_grid_details_UniqueByKey, order_details };
+      let base_value = response.data.data.base_value;
+      let data = { order_grid_details_UniqueByKey, order_details, base_value};
       dispatch(setOrderDetails(data));
       let brand_details = response.data.data.brand_details;
       let pack_type_details = response.data.data.pack_type_details;
@@ -153,6 +155,21 @@ const ModifyOrders = (props) => {
       checkCartData(cartCount);
     });
   };
+   useEffect(() => {
+      const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+      const tooltipList = [...tooltipTriggerList].map(
+        (tooltipTriggerEl) =>
+          new Tooltip(tooltipTriggerEl, {
+            delay: { show: 0, hide: 0 },
+            trigger: "hover",
+          })
+      );
+  
+      // Cleanup on unmount
+      return () => {
+        tooltipList.forEach((tooltip) => tooltip.dispose());
+      };
+    }, []);
 
   const getProductLine = async (brand) => {
     // AXIOS WRAPPER FOR API CALL
@@ -402,12 +419,64 @@ const ModifyOrders = (props) => {
   };
 
   const saveOrder = async (e) => {
-    // setShowPlaceOrder(false)
+      addToCartTotal = getRoundOff(addToCartTotal, 2); 
+      const base = Number(base_value);
     e.preventDefault();
     setDisableConfirm(true);
     dispatch(showPopUp(false));
+    console.log("base", base);
+    if (addToCartTotal < base) {
+    Swal.fire({
+      title: `<span style="
+          font-size: 18px;
+          font-weight: 600;
+          color: #b91c1c;
+          font-family: 'Segoe UI', Roboto, sans-serif;
+        ">
+          Cart Value Too Low
+        </span>`,
+      html: `
+        <div style="
+          font-family: 'Segoe UI', Roboto, sans-serif;
+          font-size: 15px;
+          color: #374151;
+          background-color: #fef3f2;
+          padding: 16px;
+          border-radius: 12px;
+          line-height: 1.6;
+          margin-top: 8px;
+        ">
+          <div style="margin-bottom: 8px;">
+            Your current cart value is 
+            <b style="color:#111;">₹${Number(addToCartTotal).toLocaleString()}</b>.
+          </div>
+          <div style="margin-bottom: 8px;">
+            Cart value should be equal or greater than 
+            <b style="color:#dc2626;">₹${Number(base_value).toLocaleString()}</b>.
+          </div>
+          <div>
+            Please add more items to proceed with the order.
+          </div>
+        </div>
+      `,
+      background: "#ffffff",
+      confirmButtonText: "OK",
+      confirmButtonColor: "#2563eb",
+      padding: "20px 16px",
+      customClass: {
+        popup: "swal2-rounded-lg swal2-shadow",
+        confirmButton: "swal2-btn",
+      },
+      hideClass: {
+        popup: "animate__animated animate__fadeOutUp",
+      },
+    });
+
+    setDisableConfirm(false); // re-enable confirm button
+    return; // stop execution here
+  }
     if (addTocart.length > 0) {
-      addToCartTotal = getRoundOff(addToCartTotal, 2);
+      
       await PlaceOrderService.saveModifyOrder({
         userProfile,
         order_details,
@@ -1177,7 +1246,14 @@ const ModifyOrders = (props) => {
                     >
                       <div className="cart-prod-list scroll">
                         {addTocart != "null" &&
-                          addTocart.map(
+                          (
+                            [
+                              // 🔥 first show all items with moq > 0
+                              ...addTocart.filter((item) => Number(item.moq) > 0),
+                              // then show remaining items
+                              ...addTocart.filter((item) => Number(item.moq) <= 0),
+                            ]
+                          ).map(
                             (item, index) => (
                               (addToCartQty =
                                 addToCartQty + item.pp_ordered_qty),
@@ -1186,17 +1262,26 @@ const ModifyOrders = (props) => {
                                 item.pp_ordered_qty),
                               (
                                 <div
-                                  className="cart-prod-div-order"
+                                   className={`cart-prod-div-order ${Number(item.moq) > 0 ? "moq-warning" : ""}`}
                                   key={index}
                                 >
                                   <div className="cart-prod-trash">
-                                    <i
-                                      onClick={(e) => removeFromCart(e, item)}
-                                      className="text-danger fa fa-trash mr-1"
-                                    ></i>
-                                  </div>
+                                  {item.ms_flag.toUpperCase() === "N" ?
+                                  (<i
+                                    className="text-muted fa fa-info p-2 cursor-pointer"
+                                    data-bs-toggle="tooltip"
+                                    data-bs-placement="top"
+                                    title="This is a required item and cannot be removed"
+                                  />) : (
+                                  <i
+                                    onClick={(e) => removeFromCart(e, item)}
+                                    className=" text-danger fa fa-trash mr-1"
+                                  ></i>
+                                  )}    
+                                </div>
                                   <div className="cart-prod-title">
-                                    {item.portal_item_code}
+                                    {item.portal_item_code} 
+                                  {Number(item.moq) > 0 && <span style={{marginLeft: "2px", color: "red",fontWeight: "bold", fontSize: "18px" }}>*</span>}
                                   </div>
                                   <div className="cart-prod-desc">
                                     <span className="cart-prod-val">
@@ -1213,6 +1298,9 @@ const ModifyOrders = (props) => {
                                       maxLength="3"
                                       onInput={maxLengthCheck}
                                       style={{ textAlign: "right" }}
+                                      onFocus={(e) => {
+                                        e.target.previousValue = item.pp_ordered_qty; // Save current value as previous value on focus
+                                      }}
                                       onChange={(e) =>
                                         handleQtyInCart(
                                           e,
@@ -1228,7 +1316,47 @@ const ModifyOrders = (props) => {
                                           event.preventDefault();
                                         }
                                       }}
-                                      // disabled={true}
+                                      onBlur={(e) => {
+                                      const inputValue = e.target.value.trim();
+                                      const currentValue = parseInt(inputValue, 10) || 0;
+                                      const prevValue = parseInt(e.target.previousValue, 10) || item.moq;
+
+                                      // 🚫 Empty or 0
+                                      if (inputValue === "" || currentValue === 0) {
+                                        Swal.fire("Quantity can't be empty or 0. Please enter a valid quantity.");
+                                        e.target.value = e.target.previousValue;
+                                        handleQtyInCart(e, item.portal_item_code);
+                                        return;
+                                      }
+
+                                      // 📌 If moq_flag = Y → must be >= 1
+                                      if (item.moq_flag.toUpperCase() === "Y" && currentValue < 1) {
+                                        Swal.fire("Quantity must be at least 1.");
+                                        e.target.value = e.target.previousValue;
+                                        handleQtyInCart(e, item.portal_item_code);
+                                        return;
+                                      }
+
+                                      // 📌 If moq_flag = N → can only increase (not decrease)
+                                      if (item.moq_flag.toUpperCase() === "N") {
+                                        if (currentValue < item.moq) {
+                                          Swal.fire(`You can only increase the quantity (minimum is ${item.moq}).`);
+
+                                          // if previousValue is >= moq, keep it, otherwise fallback to moq
+                                          if (prevValue >= item.moq) {
+                                            e.target.value = prevValue;
+                                          } else {
+                                            e.target.value = item.moq;
+                                          }
+
+                                          handleQtyInCart(e, item.portal_item_code);
+                                          return;
+                                        }
+                                      }
+
+                                      // ✅ Passed validations
+                                      handleQtyInCart(e, item.portal_item_code);
+                                    }}
                                       type="number"
                                       className="qty-ctl"
                                       step="1"

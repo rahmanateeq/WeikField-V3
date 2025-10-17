@@ -90,7 +90,7 @@ const Login = () => {
 									width="179"
 								/>
 								<h3 className=" my-4">Partner Portal</h3>
-								<h10 >v2.20(Build 06.06.2024)</h10>
+								<h10 >v3.10(Build 14.10.2025)</h10>
 							</div>
 							{/* <form action="/dashboard"> */}
 							<form onSubmit={submitForm}>

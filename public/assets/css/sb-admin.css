@@ -64,6 +64,9 @@ span.cart-prod-hdlbl {
     font-size: .9rem;
 	position:relative
 } 
+.cart-prod-div-order.moq-warning {
+  background: #fac1c1; /* softer red */
+}
 .cart-prod-title {
     font-size: 1.05rem;
     font-weight: 500;

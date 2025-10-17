@@ -39,10 +39,22 @@ function getUserType(token) {
 	});
 }
 
+function getLockStatus(userProfile) {
+	return request({
+		url: `/placeOrder/order-lock-status`,
+		method: "GET",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${userProfile.token}`,
+		},
+	});
+}
+
 const AuthService = {
 	addUser,
 	getUserType,
-	forgetPassward
+	forgetPassward,
+	getLockStatus
 };
 
 export default AuthService;
